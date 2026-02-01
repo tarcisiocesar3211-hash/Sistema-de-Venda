@@ -38,7 +38,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
 import { PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { addDays, format, isToday, isPast, parseISO, isFuture } from 'date-fns';
+import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type Plan = {
@@ -135,28 +135,41 @@ export default function ClientsPage() {
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
   
-  const getStatus = (dueDate: string): 'Vencido' | 'Vence Hoje' | 'Pago' => {
-    if (!dueDate) return 'Pago';
+  const getStatus = (dueDate: string): { text: string; type: 'Vencido' | 'Vence Hoje' | 'Pago' } => {
+    if (!dueDate) return { text: 'N/A', type: 'Pago' };
+    
     const date = parseISO(dueDate);
-    if (isPast(date) && !isToday(date)) {
-      return 'Vencido';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDateMidnight = new Date(date);
+    dueDateMidnight.setHours(0, 0, 0, 0);
+
+    const daysDiff = differenceInDays(dueDateMidnight, today);
+
+    if (daysDiff < 0) {
+      return { text: `Vencido há ${-daysDiff} dia(s)`, type: 'Vencido' };
     }
-    if (isToday(date)) {
-      return 'Vence Hoje';
+    if (daysDiff === 0) {
+      return { text: 'Vence hoje', type: 'Vence Hoje' };
     }
-    return 'Pago';
+    if (daysDiff > 0 && daysDiff <= 7) {
+        return { text: `Faltam ${daysDiff} dia(s)`, type: 'Vence Hoje' };
+    }
+    return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago' };
   };
 
   const clientsWithPlanDetails = clients.map((client) => {
     const plan = plans.find((p) => p.id === client.planId);
-    const status = getStatus(client.dueDate);
+    const statusInfo = getStatus(client.dueDate);
 
     return {
       ...client,
       planName: plan ? plan.name : 'N/A',
       planPrice: plan ? plan.price : 'N/A',
       formattedDueDate: client.dueDate ? format(parseISO(client.dueDate), 'dd/MM/yyyy') : 'N/A',
-      status: status,
+      statusText: statusInfo.text,
+      statusType: statusInfo.type,
     };
   });
 
@@ -325,23 +338,23 @@ export default function ClientsPage() {
                 <TableCell>
                   <Badge
                     variant={
-                      client.status === 'Vencido'
+                      client.statusType === 'Vencido'
                         ? 'destructive'
-                        : client.status === 'Vence Hoje'
+                        : client.statusType === 'Vence Hoje'
                         ? 'secondary'
                         : 'default'
                     }
                     className={cn(
-                      client.status === 'Pago' &&
+                      client.statusType === 'Pago' &&
                         'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
-                      client.status === 'Vence Hoje' &&
+                      client.statusType === 'Vence Hoje' &&
                         'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
-                      client.status === 'Vencido' &&
+                      client.statusType === 'Vencido' &&
                         'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
                       'border-none'
                     )}
                   >
-                    {client.status}
+                    {client.statusText}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
