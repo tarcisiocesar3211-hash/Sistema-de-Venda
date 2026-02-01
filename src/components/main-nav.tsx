@@ -13,6 +13,7 @@ export function MainNav({ className, ...props }: HTMLAttributes<HTMLElement>) {
     { href: '/clients', label: 'Clientes' },
     { href: '/payments', label: 'Pagamentos' },
     { href: '/invoices', label: 'Faturas' },
+    { href: '/plans', label: 'Planos' },
   ];
 
   return (

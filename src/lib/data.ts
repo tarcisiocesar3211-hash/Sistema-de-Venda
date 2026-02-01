@@ -41,14 +41,20 @@ export const recentSales = [
     },
 ]
 
+export const plans = [
+    { id: 'plan_01', name: 'Básico', price: 'R$ 49,90/mês' },
+    { id: 'plan_02', name: 'Pro', price: 'R$ 99,90/mês' },
+    { id: 'plan_03', name: 'Empresarial', price: 'R$ 199,90/mês' },
+];
+
 export const clients = [
-    { id: 'CLT001', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', company: 'Innovate Inc.' },
-    { id: 'CLT002', name: 'Solutions Co.', email: 'info@solutions.co', phone: '234-567-8901', company: 'Solutions Co.' },
-    { id: 'CLT003', name: 'Synergy Corp', email: 'support@synergy.com', phone: '345-678-9012', company: 'Synergy Corp' },
-    { id: 'CLT004', name: 'Quantum Ltd.', email: 'hello@quantum.ltd', phone: '456-789-0123', company: 'Quantum Ltd.' },
-    { id: 'CLT005', name: 'Apex Enterprises', email: 'admin@apex.com', phone: '567-890-1234', company: 'Apex Enterprises' },
-    { id: 'CLT006', name: 'Pinnacle Group', email: 'contact@pinnacle.com', phone: '678-901-2345', company: 'Pinnacle Group' },
-    { id: 'CLT007', name: 'Fusion Dynamics', email: 'info@fusion.com', phone: '789-012-3456', company: 'Fusion Dynamics' },
+    { id: 'CLT001', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', planId: 'plan_01' },
+    { id: 'CLT002', name: 'Solutions Co.', email: 'info@solutions.co', phone: '234-567-8901', planId: 'plan_02' },
+    { id: 'CLT003', name: 'Synergy Corp', email: 'support@synergy.com', phone: '345-678-9012', planId: 'plan_01' },
+    { id: 'CLT004', name: 'Quantum Ltd.', email: 'hello@quantum.ltd', phone: '456-789-0123', planId: 'plan_03' },
+    { id: 'CLT005', name: 'Apex Enterprises', email: 'admin@apex.com', phone: '567-890-1234', planId: 'plan_02' },
+    { id: 'CLT006', name: 'Pinnacle Group', email: 'contact@pinnacle.com', phone: '678-901-2345', planId: 'plan_01' },
+    { id: 'CLT007', name: 'Fusion Dynamics', email: 'info@fusion.com', phone: '789-012-3456', planId: 'plan_03' },
 ]
 
 export const payments = [

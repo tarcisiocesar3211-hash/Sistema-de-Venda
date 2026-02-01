@@ -14,13 +14,28 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { clients } from '@/lib/data';
+import { clients as clientsData, plans } from '@/lib/data';
 import { PlusCircle } from 'lucide-react';
 
 export default function ClientsPage() {
+  const clients = clientsData.map(client => {
+    const plan = plans.find(p => p.id === client.planId);
+    return {
+        ...client,
+        planName: plan ? plan.name : 'N/A',
+    }
+  });
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -50,7 +65,7 @@ export default function ClientsPage() {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="email" className="text-right">
-                    Email
+                    E-mail
                   </Label>
                   <Input id="email" type="email" placeholder="contact@acme.com" className="col-span-3" />
                 </div>
@@ -60,11 +75,22 @@ export default function ClientsPage() {
                   </Label>
                   <Input id="phone" placeholder="123-456-7890" className="col-span-3" />
                 </div>
-                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="company" className="text-right">
-                    Empresa
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="plan" className="text-right">
+                    Plano
                   </Label>
-                  <Input id="company" placeholder="Acme Corporation" className="col-span-3" />
+                  <Select>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button type="submit" className="w-full">Salvar cliente</Button>
               </div>
@@ -80,7 +106,7 @@ export default function ClientsPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
-              <TableHead>Empresa</TableHead>
+              <TableHead>Plano</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -90,7 +116,7 @@ export default function ClientsPage() {
                 <TableCell>{client.name}</TableCell>
                 <TableCell>{client.email}</TableCell>
                 <TableCell>{client.phone}</TableCell>
-                <TableCell>{client.company}</TableCell>
+                <TableCell>{client.planName}</TableCell>
               </TableRow>
             ))}
           </TableBody>
