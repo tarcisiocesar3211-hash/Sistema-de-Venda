@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -17,10 +20,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { plans } from '@/lib/data';
+import { plans as initialPlans } from '@/lib/data';
 import { PlusCircle, Trash2 } from 'lucide-react';
 
 export default function PlansPage() {
+  const [plans, setPlans] = useState(initialPlans);
+
+  const handleRemovePlan = (id: string) => {
+    setPlans(plans.filter((plan) => plan.id !== id));
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -77,7 +86,11 @@ export default function PlansPage() {
                 <TableCell>{plan.name}</TableCell>
                 <TableCell>{plan.price}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemovePlan(plan.id)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>
