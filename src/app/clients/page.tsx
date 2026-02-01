@@ -368,6 +368,7 @@ export default function ClientsPage() {
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
     setSelectedClients([]);
+    setDeletionTarget(null);
   };
 
   const handleCopyEmails = () => {
@@ -662,6 +663,7 @@ export default function ClientsPage() {
               </TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Telefone</TableHead>
               <TableHead>Plano</TableHead>
               <TableHead>Valor do Plano</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -689,7 +691,8 @@ export default function ClientsPage() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{client.name}</TableCell>
-                <TableCell>{client.email}</TableCell>
+                <TableCell className="text-xs">{client.email}</TableCell>
+                <TableCell>{client.phone}</TableCell>
                 <TableCell>{client.planName}</TableCell>
                 <TableCell>{client.planPrice}</TableCell>
                 <TableCell>{client.formattedDueDate}</TableCell>
@@ -748,7 +751,11 @@ export default function ClientsPage() {
       </div>
       <AlertDialog
         open={deletionTarget !== null}
-        onOpenChange={(open) => !open && setDeletionTarget(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeletionTarget(null);
+          }
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -770,6 +777,7 @@ export default function ClientsPage() {
                   handleDeleteSelected();
                 } else if (deletionTarget) {
                   handleRemoveClient(deletionTarget);
+                  setDeletionTarget(null);
                 }
               }}
             >
