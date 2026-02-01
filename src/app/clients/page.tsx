@@ -18,6 +18,12 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
 import { PlusCircle, Trash2, Pencil, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -61,6 +68,7 @@ export default function ClientsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -300,6 +308,53 @@ export default function ClientsPage() {
     };
   });
 
+  const handleRenewSelected = () => {
+    if (selectedClients.length === 0) return;
+
+    let updatedClients = [...clients];
+    const newPayments: Payment[] = [];
+
+    updatedClients = updatedClients.map((client) => {
+      if (selectedClients.includes(client.id)) {
+        const plan = plans.find((p) => p.id === client.planId);
+        const newPayment: Payment = {
+          id: `PAY${Date.now()}_${client.id}`,
+          clientName: client.name,
+          clientEmail: client.email,
+          amount: plan ? plan.price : 'N/A',
+          date: new Date().toISOString(),
+        };
+        newPayments.push(newPayment);
+
+        return {
+          ...client,
+          dueDate: addDays(new Date(), 30).toISOString(),
+        };
+      }
+      return client;
+    });
+
+    const updatedPayments = [...payments, ...newPayments];
+
+    setClients(updatedClients);
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setPayments(updatedPayments);
+    localStorage.setItem('payments', JSON.stringify(updatedPayments));
+
+    setSelectedClients([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedClients.length === 0) return;
+
+    const updatedClients = clients.filter(
+      (client) => !selectedClients.includes(client.id)
+    );
+    setClients(updatedClients);
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setSelectedClients([]);
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -307,6 +362,25 @@ export default function ClientsPage() {
           Clientes
         </h2>
         <div className="flex items-center space-x-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={selectedClients.length === 0}>
+                Ações em Massa
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleRenewSelected}>
+                Renovar Selecionados
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleDeleteSelected}
+                className="text-red-500 hover:text-red-500 focus:text-red-500"
+              >
+                Apagar Selecionados
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
             <SheetTrigger asChild>
               <Button>
@@ -532,6 +606,22 @@ export default function ClientsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={
+                    selectedClients.length === clients.length &&
+                    clients.length > 0
+                  }
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedClients(clients.map((c) => c.id));
+                    } else {
+                      setSelectedClients([]);
+                    }
+                  }}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Plano</TableHead>
@@ -543,7 +633,23 @@ export default function ClientsPage() {
           </TableHeader>
           <TableBody>
             {clientsWithPlanDetails.map((client) => (
-              <TableRow key={client.id}>
+              <TableRow
+                key={client.id}
+                data-state={selectedClients.includes(client.id) && 'selected'}
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedClients.includes(client.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedClients(
+                        checked
+                          ? [...selectedClients, client.id]
+                          : selectedClients.filter((id) => id !== client.id)
+                      );
+                    }}
+                    aria-label="Selecionar linha"
+                  />
+                </TableCell>
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell>{client.email}</TableCell>
                 <TableCell>{client.planName}</TableCell>
