@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -24,10 +27,31 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { clients as clientsData, plans } from '@/lib/data';
+import { clients as clientsData, plans as initialPlans } from '@/lib/data';
 import { PlusCircle } from 'lucide-react';
 
+type Plan = {
+  id: string;
+  name: string;
+  price: string;
+};
+
 export default function ClientsPage() {
+  const [plans, setPlans] = useState<Plan[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedPlans = localStorage.getItem('plans');
+      if (storedPlans) {
+        setPlans(JSON.parse(storedPlans));
+      } else {
+        setPlans(initialPlans);
+      }
+    } catch (error) {
+      setPlans(initialPlans);
+    }
+  }, []);
+
   const clients = clientsData.map(client => {
     const plan = plans.find(p => p.id === client.planId);
     return {

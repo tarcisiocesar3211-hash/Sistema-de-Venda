@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -23,13 +23,35 @@ import { Label } from '@/components/ui/label';
 import { plans as initialPlans } from '@/lib/data';
 import { PlusCircle, Trash2 } from 'lucide-react';
 
+type Plan = {
+  id: string;
+  name: string;
+  price: string;
+};
+
 export default function PlansPage() {
-  const [plans, setPlans] = useState(initialPlans);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanPrice, setNewPlanPrice] = useState('');
 
+  useEffect(() => {
+    try {
+      const storedPlans = localStorage.getItem('plans');
+      if (storedPlans) {
+        setPlans(JSON.parse(storedPlans));
+      } else {
+        setPlans(initialPlans);
+        localStorage.setItem('plans', JSON.stringify(initialPlans));
+      }
+    } catch (error) {
+      setPlans(initialPlans);
+    }
+  }, []);
+
   const handleRemovePlan = (id: string) => {
-    setPlans(plans.filter((plan) => plan.id !== id));
+    const updatedPlans = plans.filter((plan) => plan.id !== id);
+    setPlans(updatedPlans);
+    localStorage.setItem('plans', JSON.stringify(updatedPlans));
   };
 
   const handleAddPlan = () => {
@@ -41,7 +63,9 @@ export default function PlansPage() {
       price: newPlanPrice,
     };
 
-    setPlans([...plans, newPlan]);
+    const updatedPlans = [...plans, newPlan];
+    setPlans(updatedPlans);
+    localStorage.setItem('plans', JSON.stringify(updatedPlans));
     setNewPlanName('');
     setNewPlanPrice('');
   };
