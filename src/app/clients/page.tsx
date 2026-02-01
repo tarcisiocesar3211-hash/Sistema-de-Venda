@@ -752,14 +752,14 @@ export default function ClientsPage() {
                     aria-label="Selecionar linha"
                   />
                 </TableCell>
-                <TableCell className="font-medium">{client.name}</TableCell>
+                <TableCell className="font-medium text-xs">{client.name}</TableCell>
                 <TableCell className="text-xs">{client.email}</TableCell>
-                <TableCell>{client.phone}</TableCell>
-                <TableCell>{client.tela}</TableCell>
-                <TableCell>{client.pin}</TableCell>
-                <TableCell>{client.planName}</TableCell>
-                <TableCell>{client.planPrice}</TableCell>
-                <TableCell>{client.formattedDueDate}</TableCell>
+                <TableCell className="text-xs">{client.phone}</TableCell>
+                <TableCell className="text-xs">{client.tela}</TableCell>
+                <TableCell className="text-xs">{client.pin}</TableCell>
+                <TableCell className="text-xs">{client.planName}</TableCell>
+                <TableCell className="text-xs">{client.planPrice}</TableCell>
+                <TableCell className="text-xs">{client.formattedDueDate}</TableCell>
                 <TableCell>
                   <Badge
                     variant={
