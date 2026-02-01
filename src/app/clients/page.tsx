@@ -771,7 +771,6 @@ export default function ClientsPage() {
                 } else if (deletionTarget) {
                   handleRemoveClient(deletionTarget);
                 }
-                setDeletionTarget(null);
               }}
             >
               Apagar
