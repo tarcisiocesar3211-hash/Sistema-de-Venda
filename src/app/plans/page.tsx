@@ -25,9 +25,25 @@ import { PlusCircle, Trash2 } from 'lucide-react';
 
 export default function PlansPage() {
   const [plans, setPlans] = useState(initialPlans);
+  const [newPlanName, setNewPlanName] = useState('');
+  const [newPlanPrice, setNewPlanPrice] = useState('');
 
   const handleRemovePlan = (id: string) => {
     setPlans(plans.filter((plan) => plan.id !== id));
+  };
+
+  const handleAddPlan = () => {
+    if (!newPlanName || !newPlanPrice) return;
+
+    const newPlan = {
+      id: `plan_${Date.now()}`,
+      name: newPlanName,
+      price: newPlanPrice,
+    };
+
+    setPlans([...plans, newPlan]);
+    setNewPlanName('');
+    setNewPlanPrice('');
   };
 
   return (
@@ -55,15 +71,29 @@ export default function PlansPage() {
                   <Label htmlFor="name" className="text-right">
                     Nome
                   </Label>
-                  <Input id="name" placeholder="Plano Básico" className="col-span-3" />
+                  <Input
+                    id="name"
+                    placeholder="Plano Básico"
+                    className="col-span-3"
+                    value={newPlanName}
+                    onChange={(e) => setNewPlanName(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="price" className="text-right">
                     Preço
                   </Label>
-                  <Input id="price" placeholder="R$ 49,90/mês" className="col-span-3" />
+                  <Input
+                    id="price"
+                    placeholder="R$ 49,90/mês"
+                    className="col-span-3"
+                    value={newPlanPrice}
+                    onChange={(e) => setNewPlanPrice(e.target.value)}
+                  />
                 </div>
-                <Button type="submit" className="w-full">Salvar plano</Button>
+                <Button onClick={handleAddPlan} className="w-full">
+                  Salvar plano
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
