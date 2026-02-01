@@ -65,6 +65,8 @@ type Client = {
   phone: string;
   planId: string;
   dueDate: string;
+  tela?: string;
+  pin?: string;
 };
 
 type Payment = {
@@ -87,6 +89,8 @@ export default function ClientsPage() {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientPlanId, setNewClientPlanId] = useState('');
+  const [newClientTela, setNewClientTela] = useState('');
+  const [newClientPin, setNewClientPin] = useState('');
   const [newClientDueDate, setNewClientDueDate] = useState<string>('');
   const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
     'automatico'
@@ -99,6 +103,8 @@ export default function ClientsPage() {
   const [editedClientEmail, setEditedClientEmail] = useState('');
   const [editedClientPhone, setEditedClientPhone] = useState('');
   const [editedClientPlanId, setEditedClientPlanId] = useState('');
+  const [editedClientTela, setEditedClientTela] = useState('');
+  const [editedClientPin, setEditedClientPin] = useState('');
   const [editedClientDueDate, setEditedClientDueDate] = useState<string>('');
   const [editedDueDateType, setEditedDueDateType] = useState<
     'automatico' | 'manual'
@@ -148,6 +154,8 @@ export default function ClientsPage() {
       setEditedClientEmail(editingClient.email);
       setEditedClientPhone(editingClient.phone);
       setEditedClientPlanId(editingClient.planId);
+      setEditedClientTela(editingClient.tela || '');
+      setEditedClientPin(editingClient.pin || '');
       if (editingClient.dueDate) {
         setEditedClientDueDate(
           format(parseISO(editingClient.dueDate), 'yyyy-MM-dd')
@@ -180,6 +188,8 @@ export default function ClientsPage() {
       phone: newClientPhone,
       planId: newClientPlanId,
       dueDate: dueDate.toISOString(),
+      tela: newClientTela,
+      pin: newClientPin,
     };
 
     const updatedClients = [...clients, newClient];
@@ -202,6 +212,8 @@ export default function ClientsPage() {
     setNewClientEmail('');
     setNewClientPhone('');
     setNewClientPlanId('');
+    setNewClientTela('');
+    setNewClientPin('');
     setNewClientDueDate('');
     setDueDateType('automatico');
     setIsAddSheetOpen(false);
@@ -241,6 +253,8 @@ export default function ClientsPage() {
           phone: editedClientPhone,
           planId: editedClientPlanId,
           dueDate: dueDate.toISOString(),
+          tela: editedClientTela,
+          pin: editedClientPin,
         };
       }
       return client;
@@ -473,6 +487,30 @@ export default function ClientsPage() {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="tela" className="text-right">
+                    Tela
+                  </Label>
+                  <Input
+                    id="tela"
+                    placeholder="Ex: 1"
+                    className="col-span-3"
+                    value={newClientTela}
+                    onChange={(e) => setNewClientTela(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="pin" className="text-right">
+                    PIN
+                  </Label>
+                  <Input
+                    id="pin"
+                    placeholder="Ex: 1234"
+                    className="col-span-3"
+                    value={newClientPin}
+                    onChange={(e) => setNewClientPin(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="plan" className="text-right">
                     Plano
                   </Label>
@@ -578,6 +616,28 @@ export default function ClientsPage() {
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-tela" className="text-right">
+                    Tela
+                  </Label>
+                  <Input
+                    id="edit-tela"
+                    className="col-span-3"
+                    value={editedClientTela}
+                    onChange={(e) => setEditedClientTela(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-pin" className="text-right">
+                    PIN
+                  </Label>
+                  <Input
+                    id="edit-pin"
+                    className="col-span-3"
+                    value={editedClientPin}
+                    onChange={(e) => setEditedClientPin(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="edit-plan" className="text-right">
                     Plano
                   </Label>
@@ -664,6 +724,8 @@ export default function ClientsPage() {
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
+              <TableHead>Tela</TableHead>
+              <TableHead>PIN</TableHead>
               <TableHead>Plano</TableHead>
               <TableHead>Valor do Plano</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -693,6 +755,8 @@ export default function ClientsPage() {
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell className="text-xs">{client.email}</TableCell>
                 <TableCell>{client.phone}</TableCell>
+                <TableCell>{client.tela}</TableCell>
+                <TableCell>{client.pin}</TableCell>
                 <TableCell>{client.planName}</TableCell>
                 <TableCell>{client.planPrice}</TableCell>
                 <TableCell>{client.formattedDueDate}</TableCell>
@@ -777,8 +841,8 @@ export default function ClientsPage() {
                   handleDeleteSelected();
                 } else if (deletionTarget) {
                   handleRemoveClient(deletionTarget);
-                  setDeletionTarget(null);
                 }
+                setDeletionTarget(null);
               }}
             >
               Apagar
