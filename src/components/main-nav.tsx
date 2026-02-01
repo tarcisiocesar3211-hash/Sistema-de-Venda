@@ -9,10 +9,10 @@ export function MainNav({ className, ...props }: HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
 
   const routes = [
-    { href: '/', label: 'Dashboard' },
-    { href: '/clients', label: 'Clients' },
-    { href: '/payments', label: 'Payments' },
-    { href: '/invoices', label: 'Invoices' },
+    { href: '/', label: 'Painel' },
+    { href: '/clients', label: 'Clientes' },
+    { href: '/payments', label: 'Pagamentos' },
+    { href: '/invoices', label: 'Faturas' },
   ];
 
   return (

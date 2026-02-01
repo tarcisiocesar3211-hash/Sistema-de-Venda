@@ -5,8 +5,8 @@ import Header from '@/components/header';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Sales Glimpse',
-  description: 'A simple sales dashboard.',
+  title: 'Visão de Vendas',
+  description: 'Um painel de vendas simples.',
 };
 
 export default function RootLayout({

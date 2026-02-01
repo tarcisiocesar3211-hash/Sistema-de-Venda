@@ -25,26 +25,26 @@ export default function ClientsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">
-          Clients
+          Clientes
         </h2>
         <div className="flex items-center space-x-2">
           <Sheet>
             <SheetTrigger asChild>
               <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Client
+                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Cliente
               </Button>
             </SheetTrigger>
             <SheetContent>
               <SheetHeader>
-                <SheetTitle>Add a new client</SheetTitle>
+                <SheetTitle>Adicionar um novo cliente</SheetTitle>
                 <SheetDescription>
-                  Fill out the form below to add a new client to your records.
+                  Preencha o formulário abaixo para adicionar um novo cliente aos seus registros.
                 </SheetDescription>
               </SheetHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">
-                    Name
+                    Nome
                   </Label>
                   <Input id="name" placeholder="Acme Inc." className="col-span-3" />
                 </div>
@@ -56,17 +56,17 @@ export default function ClientsPage() {
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="phone" className="text-right">
-                    Phone
+                    Telefone
                   </Label>
                   <Input id="phone" placeholder="123-456-7890" className="col-span-3" />
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="company" className="text-right">
-                    Company
+                    Empresa
                   </Label>
                   <Input id="company" placeholder="Acme Corporation" className="col-span-3" />
                 </div>
-                <Button type="submit" className="w-full">Save client</Button>
+                <Button type="submit" className="w-full">Salvar cliente</Button>
               </div>
             </SheetContent>
           </Sheet>
@@ -76,11 +76,11 @@ export default function ClientsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Client ID</TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead>ID do Cliente</TableHead>
+              <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Company</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead>Empresa</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
