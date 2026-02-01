@@ -30,11 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
-import {
-  PlusCircle,
-  Trash2,
-  Pencil,
-} from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 
@@ -112,7 +108,9 @@ export default function ClientsPage() {
       setEditedClientPhone(editingClient.phone);
       setEditedClientPlanId(editingClient.planId);
       if (editingClient.dueDate) {
-        setEditedClientDueDate(format(parseISO(editingClient.dueDate), 'yyyy-MM-dd'));
+        setEditedClientDueDate(
+          format(parseISO(editingClient.dueDate), 'yyyy-MM-dd')
+        );
         setEditedDueDateType('manual');
       } else {
         setEditedClientDueDate('');
@@ -161,38 +159,58 @@ export default function ClientsPage() {
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
-  
+
   const handleUpdateClient = () => {
-    if (!editingClient || !editedClientName || !editedClientEmail || !editedClientPlanId) return;
+    if (
+      !editingClient ||
+      !editedClientName ||
+      !editedClientEmail ||
+      !editedClientPlanId
+    )
+      return;
 
     let dueDate: Date;
     if (editedDueDateType === 'automatico') {
-        dueDate = addDays(new Date(), 30);
+      dueDate = addDays(new Date(), 30);
     } else {
-        if (!editedClientDueDate) {
-            return;
-        }
-        dueDate = parseISO(editedClientDueDate);
+      if (!editedClientDueDate) {
+        return;
+      }
+      dueDate = parseISO(editedClientDueDate);
     }
 
     const updatedClients = clients.map((client) => {
-        if (client.id === editingClient.id) {
-            return {
-                ...client,
-                name: editedClientName,
-                email: editedClientEmail,
-                phone: editedClientPhone,
-                planId: editedClientPlanId,
-                dueDate: dueDate.toISOString(),
-            };
-        }
-        return client;
+      if (client.id === editingClient.id) {
+        return {
+          ...client,
+          name: editedClientName,
+          email: editedClientEmail,
+          phone: editedClientPhone,
+          planId: editedClientPlanId,
+          dueDate: dueDate.toISOString(),
+        };
+      }
+      return client;
     });
 
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
     setIsEditSheetOpen(false);
     setEditingClient(null);
+  };
+
+  const handleRenewClient = (id: string) => {
+    const updatedClients = clients.map((client) => {
+      if (client.id === id) {
+        return {
+          ...client,
+          dueDate: addDays(new Date(), 30).toISOString(),
+        };
+      }
+      return client;
+    });
+    setClients(updatedClients);
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
 
   const getStatus = (
@@ -432,7 +450,9 @@ export default function ClientsPage() {
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="automatico" id="edit-automatico" />
-                      <Label htmlFor="edit-automatico">Automático (30 dias)</Label>
+                      <Label htmlFor="edit-automatico">
+                        Automático (30 dias)
+                      </Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="manual" id="edit-manual" />
@@ -516,6 +536,13 @@ export default function ClientsPage() {
                     }}
                   >
                     <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRenewClient(client.id)}
+                  >
+                    <RefreshCcw className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
