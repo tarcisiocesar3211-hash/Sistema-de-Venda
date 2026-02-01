@@ -105,11 +105,12 @@ export default function ClientsPage() {
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
 
-  const clientsWithPlanNames = clients.map(client => {
+  const clientsWithPlanDetails = clients.map(client => {
     const plan = plans.find(p => p.id === client.planId);
     return {
         ...client,
         planName: plan ? plan.name : 'N/A',
+        planPrice: plan ? plan.price : 'N/A',
     }
   });
 
@@ -184,17 +185,19 @@ export default function ClientsPage() {
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Plano</TableHead>
+              <TableHead>Valor do Plano</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clientsWithPlanNames.map((client) => (
+            {clientsWithPlanDetails.map((client) => (
               <TableRow key={client.id}>
                 <TableCell className="font-medium">{client.id}</TableCell>
                 <TableCell>{client.name}</TableCell>
                 <TableCell>{client.email}</TableCell>
                 <TableCell>{client.phone}</TableCell>
                 <TableCell>{client.planName}</TableCell>
+                <TableCell>{client.planPrice}</TableCell>
                 <TableCell className="text-right">
                     <Button
                         variant="ghost"
