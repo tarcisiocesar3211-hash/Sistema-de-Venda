@@ -37,9 +37,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
-import { PlusCircle, Trash2, Pencil, RefreshCcw } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, RefreshCcw, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 type Plan = {
   id: string;
@@ -69,6 +70,7 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const { toast } = useToast();
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -355,6 +357,23 @@ export default function ClientsPage() {
     setSelectedClients([]);
   };
 
+  const handleCopyEmails = () => {
+    if (selectedClients.length === 0) return;
+
+    const emailsToCopy = clients
+      .filter((client) => selectedClients.includes(client.id))
+      .map((client) => client.email)
+      .join(', ');
+
+    navigator.clipboard.writeText(emailsToCopy).then(() => {
+      toast({
+        title: 'E-mails copiados!',
+        description:
+          'Os e-mails dos clientes selecionados foram copiados para a área de transferência.',
+      });
+    });
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -369,13 +388,19 @@ export default function ClientsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleCopyEmails}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar E-mails
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleRenewSelected}>
+                <RefreshCcw className="mr-2 h-4 w-4" />
                 Renovar Selecionados
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleDeleteSelected}
                 className="text-red-500 hover:text-red-500 focus:text-red-500"
               >
+                <Trash2 className="mr-2 h-4 w-4" />
                 Apagar Selecionados
               </DropdownMenuItem>
             </DropdownMenuContent>
