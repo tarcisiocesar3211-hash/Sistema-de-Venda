@@ -36,7 +36,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
-import { PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  PlusCircle,
+  Trash2,
+  Calendar as CalendarIcon,
+  Pencil,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -60,6 +65,7 @@ export default function ClientsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
 
+  // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -68,6 +74,19 @@ export default function ClientsPage() {
   const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
     'automatico'
   );
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+
+  // State for editing a client
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editedClientName, setEditedClientName] = useState('');
+  const [editedClientEmail, setEditedClientEmail] = useState('');
+  const [editedClientPhone, setEditedClientPhone] = useState('');
+  const [editedClientPlanId, setEditedClientPlanId] = useState('');
+  const [editedClientDueDate, setEditedClientDueDate] = useState<Date>();
+  const [editedDueDateType, setEditedDueDateType] = useState<
+    'automatico' | 'manual'
+  >('automatico');
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -94,6 +113,22 @@ export default function ClientsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (editingClient) {
+      setEditedClientName(editingClient.name);
+      setEditedClientEmail(editingClient.email);
+      setEditedClientPhone(editingClient.phone);
+      setEditedClientPlanId(editingClient.planId);
+      if (editingClient.dueDate) {
+        setEditedClientDueDate(parseISO(editingClient.dueDate));
+        setEditedDueDateType('manual');
+      } else {
+        setEditedClientDueDate(undefined);
+        setEditedDueDateType('automatico');
+      }
+    }
+  }, [editingClient]);
+
   const handleAddClient = () => {
     if (!newClientName || !newClientEmail || !newClientPlanId) return;
 
@@ -102,7 +137,6 @@ export default function ClientsPage() {
       dueDate = addDays(new Date(), 30);
     } else {
       if (!newClientDueDate) {
-        // Option to handle if manual date is not selected
         return;
       }
       dueDate = newClientDueDate;
@@ -127,6 +161,7 @@ export default function ClientsPage() {
     setNewClientPlanId('');
     setNewClientDueDate(undefined);
     setDueDateType('automatico');
+    setIsAddSheetOpen(false);
   };
 
   const handleRemoveClient = (id: string) => {
@@ -135,9 +170,44 @@ export default function ClientsPage() {
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
   
-  const getStatus = (dueDate: string): { text: string; type: 'Vencido' | 'Vence Hoje' | 'Pago' } => {
+  const handleUpdateClient = () => {
+    if (!editingClient || !editedClientName || !editedClientEmail || !editedClientPlanId) return;
+
+    let dueDate: Date;
+    if (editedDueDateType === 'automatico') {
+        dueDate = addDays(new Date(), 30);
+    } else {
+        if (!editedClientDueDate) {
+            return;
+        }
+        dueDate = editedClientDueDate;
+    }
+
+    const updatedClients = clients.map((client) => {
+        if (client.id === editingClient.id) {
+            return {
+                ...client,
+                name: editedClientName,
+                email: editedClientEmail,
+                phone: editedClientPhone,
+                planId: editedClientPlanId,
+                dueDate: dueDate.toISOString(),
+            };
+        }
+        return client;
+    });
+
+    setClients(updatedClients);
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setIsEditSheetOpen(false);
+    setEditingClient(null);
+  };
+
+  const getStatus = (
+    dueDate: string
+  ): { text: string; type: 'Vencido' | 'Vence Hoje' | 'Pago' } => {
     if (!dueDate) return { text: 'N/A', type: 'Pago' };
-    
+
     const date = parseISO(dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -154,7 +224,7 @@ export default function ClientsPage() {
       return { text: 'Vence hoje', type: 'Vence Hoje' };
     }
     if (daysDiff > 0 && daysDiff <= 7) {
-        return { text: `Faltam ${daysDiff} dia(s)`, type: 'Vence Hoje' };
+      return { text: `Faltam ${daysDiff} dia(s)`, type: 'Vence Hoje' };
     }
     return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago' };
   };
@@ -167,7 +237,9 @@ export default function ClientsPage() {
       ...client,
       planName: plan ? plan.name : 'N/A',
       planPrice: plan ? plan.price : 'N/A',
-      formattedDueDate: client.dueDate ? format(parseISO(client.dueDate), 'dd/MM/yyyy') : 'N/A',
+      formattedDueDate: client.dueDate
+        ? format(parseISO(client.dueDate), 'dd/MM/yyyy')
+        : 'N/A',
       statusText: statusInfo.text,
       statusType: statusInfo.type,
     };
@@ -180,7 +252,7 @@ export default function ClientsPage() {
           Clientes
         </h2>
         <div className="flex items-center space-x-2">
-          <Sheet>
+          <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
             <SheetTrigger asChild>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Cliente
@@ -190,8 +262,8 @@ export default function ClientsPage() {
               <SheetHeader>
                 <SheetTitle>Adicionar um novo cliente</SheetTitle>
                 <SheetDescription>
-                  Preencha o formulário abaixo para adicionar um novo cliente aos
-                  seus registros.
+                  Preencha o formulário abaixo para adicionar um novo cliente
+                  aos seus registros.
                 </SheetDescription>
               </SheetHeader>
               <div className="grid gap-4 py-4">
@@ -312,6 +384,129 @@ export default function ClientsPage() {
               </div>
             </SheetContent>
           </Sheet>
+          {/* Edit Client Sheet */}
+          <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Editar cliente</SheetTitle>
+                <SheetDescription>
+                  Atualize as informações do cliente abaixo.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-name" className="text-right">
+                    Nome
+                  </Label>
+                  <Input
+                    id="edit-name"
+                    className="col-span-3"
+                    value={editedClientName}
+                    onChange={(e) => setEditedClientName(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-email" className="text-right">
+                    E-mail
+                  </Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    className="col-span-3"
+                    value={editedClientEmail}
+                    onChange={(e) => setEditedClientEmail(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-phone" className="text-right">
+                    Telefone
+                  </Label>
+                  <Input
+                    id="edit-phone"
+                    className="col-span-3"
+                    value={editedClientPhone}
+                    onChange={(e) => setEditedClientPhone(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-plan" className="text-right">
+                    Plano
+                  </Label>
+                  <Select
+                    value={editedClientPlanId}
+                    onValueChange={setEditedClientPlanId}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecione um plano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {plans.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Vencimento</Label>
+                  <RadioGroup
+                    value={editedDueDateType}
+                    onValueChange={(value) =>
+                      setEditedDueDateType(value as 'automatico' | 'manual')
+                    }
+                    className="col-span-3 flex items-center space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="automatico" id="edit-automatico" />
+                      <Label htmlFor="edit-automatico">Automático (30 dias)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="manual" id="edit-manual" />
+                      <Label htmlFor="edit-manual">Manual</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {editedDueDateType === 'manual' && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-dueDate" className="text-right">
+                      Data
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={'outline'}
+                          className={cn(
+                            'col-span-3 justify-start text-left font-normal',
+                            !editedClientDueDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {editedClientDueDate ? (
+                            format(editedClientDueDate, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Escolha uma data</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={editedClientDueDate}
+                          onSelect={setEditedClientDueDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+                <Button onClick={handleUpdateClient} className="w-full">
+                  Salvar alterações
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
       <div className="rounded-md border">
@@ -358,6 +553,16 @@ export default function ClientsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditingClient(client as Client);
+                      setIsEditSheetOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
