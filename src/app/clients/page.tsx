@@ -49,9 +49,18 @@ type Client = {
   dueDate: string;
 };
 
+type Payment = {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  amount: string;
+  date: string;
+};
+
 export default function ClientsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -99,6 +108,15 @@ export default function ClientsPage() {
     } catch (error) {
       setClients(clientsData);
     }
+
+    try {
+      const storedPayments = localStorage.getItem('payments');
+      if (storedPayments) {
+        setPayments(JSON.parse(storedPayments));
+      }
+    } catch (error) {
+      setPayments([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -144,6 +162,18 @@ export default function ClientsPage() {
     const updatedClients = [...clients, newClient];
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
+
+    const plan = plans.find((p) => p.id === newClient.planId);
+    const newPayment: Payment = {
+      id: `PAY${Date.now()}`,
+      clientName: newClient.name,
+      clientEmail: newClient.email,
+      amount: plan ? plan.price : 'N/A',
+      date: new Date().toISOString(),
+    };
+    const updatedPayments = [...payments, newPayment];
+    setPayments(updatedPayments);
+    localStorage.setItem('payments', JSON.stringify(updatedPayments));
 
     setNewClientName('');
     setNewClientEmail('');
@@ -200,6 +230,9 @@ export default function ClientsPage() {
   };
 
   const handleRenewClient = (id: string) => {
+    const clientToRenew = clients.find((c) => c.id === id);
+    if (!clientToRenew) return;
+
     const updatedClients = clients.map((client) => {
       if (client.id === id) {
         return {
@@ -211,6 +244,18 @@ export default function ClientsPage() {
     });
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
+
+    const plan = plans.find((p) => p.id === clientToRenew.planId);
+    const newPayment: Payment = {
+      id: `PAY${Date.now()}`,
+      clientName: clientToRenew.name,
+      clientEmail: clientToRenew.email,
+      amount: plan ? plan.price : 'N/A',
+      date: new Date().toISOString(),
+    };
+    const updatedPayments = [...payments, newPayment];
+    setPayments(updatedPayments);
+    localStorage.setItem('payments', JSON.stringify(updatedPayments));
   };
 
   const getStatus = (
