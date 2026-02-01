@@ -24,27 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
 import {
   PlusCircle,
   Trash2,
-  Calendar as CalendarIcon,
   Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 type Plan = {
   id: string;
@@ -70,7 +62,7 @@ export default function ClientsPage() {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientPlanId, setNewClientPlanId] = useState('');
-  const [newClientDueDate, setNewClientDueDate] = useState<Date>();
+  const [newClientDueDate, setNewClientDueDate] = useState<string>('');
   const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
     'automatico'
   );
@@ -82,7 +74,7 @@ export default function ClientsPage() {
   const [editedClientEmail, setEditedClientEmail] = useState('');
   const [editedClientPhone, setEditedClientPhone] = useState('');
   const [editedClientPlanId, setEditedClientPlanId] = useState('');
-  const [editedClientDueDate, setEditedClientDueDate] = useState<Date>();
+  const [editedClientDueDate, setEditedClientDueDate] = useState<string>('');
   const [editedDueDateType, setEditedDueDateType] = useState<
     'automatico' | 'manual'
   >('automatico');
@@ -120,10 +112,10 @@ export default function ClientsPage() {
       setEditedClientPhone(editingClient.phone);
       setEditedClientPlanId(editingClient.planId);
       if (editingClient.dueDate) {
-        setEditedClientDueDate(parseISO(editingClient.dueDate));
+        setEditedClientDueDate(format(parseISO(editingClient.dueDate), 'yyyy-MM-dd'));
         setEditedDueDateType('manual');
       } else {
-        setEditedClientDueDate(undefined);
+        setEditedClientDueDate('');
         setEditedDueDateType('automatico');
       }
     }
@@ -139,7 +131,7 @@ export default function ClientsPage() {
       if (!newClientDueDate) {
         return;
       }
-      dueDate = newClientDueDate;
+      dueDate = parseISO(newClientDueDate);
     }
 
     const newClient: Client = {
@@ -159,7 +151,7 @@ export default function ClientsPage() {
     setNewClientEmail('');
     setNewClientPhone('');
     setNewClientPlanId('');
-    setNewClientDueDate(undefined);
+    setNewClientDueDate('');
     setDueDateType('automatico');
     setIsAddSheetOpen(false);
   };
@@ -180,7 +172,7 @@ export default function ClientsPage() {
         if (!editedClientDueDate) {
             return;
         }
-        dueDate = editedClientDueDate;
+        dueDate = parseISO(editedClientDueDate);
     }
 
     const updatedClients = clients.map((client) => {
@@ -349,32 +341,13 @@ export default function ClientsPage() {
                     <Label htmlFor="dueDate" className="text-right">
                       Data
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'col-span-3 justify-start text-left font-normal',
-                            !newClientDueDate && 'text-muted-foreground'
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newClientDueDate ? (
-                            format(newClientDueDate, 'PPP', { locale: ptBR })
-                          ) : (
-                            <span>Escolha uma data</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={newClientDueDate}
-                          onSelect={setNewClientDueDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Input
+                      id="dueDate"
+                      type="date"
+                      className="col-span-3"
+                      value={newClientDueDate}
+                      onChange={(e) => setNewClientDueDate(e.target.value)}
+                    />
                   </div>
                 )}
 
@@ -473,32 +446,13 @@ export default function ClientsPage() {
                     <Label htmlFor="edit-dueDate" className="text-right">
                       Data
                     </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'col-span-3 justify-start text-left font-normal',
-                            !editedClientDueDate && 'text-muted-foreground'
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {editedClientDueDate ? (
-                            format(editedClientDueDate, 'PPP', { locale: ptBR })
-                          ) : (
-                            <span>Escolha uma data</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={editedClientDueDate}
-                          onSelect={setEditedClientDueDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Input
+                      id="edit-dueDate"
+                      type="date"
+                      className="col-span-3"
+                      value={editedClientDueDate}
+                      onChange={(e) => setEditedClientDueDate(e.target.value)}
+                    />
                   </div>
                 )}
                 <Button onClick={handleUpdateClient} className="w-full">
