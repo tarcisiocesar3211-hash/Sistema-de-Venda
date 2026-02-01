@@ -41,6 +41,16 @@ import { PlusCircle, Trash2, Pencil, RefreshCcw, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Plan = {
   id: string;
@@ -94,6 +104,9 @@ export default function ClientsPage() {
     'automatico' | 'manual'
   >('automatico');
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [deletionTarget, setDeletionTarget] = useState<
+    string | 'selected' | null
+  >(null);
 
   useEffect(() => {
     try {
@@ -397,7 +410,7 @@ export default function ClientsPage() {
                 Renovar Selecionados
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={handleDeleteSelected}
+                onClick={() => setDeletionTarget('selected')}
                 className="text-red-500 hover:text-red-500 focus:text-red-500"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -723,7 +736,7 @@ export default function ClientsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleRemoveClient(client.id)}
+                    onClick={() => setDeletionTarget(client.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -733,6 +746,39 @@ export default function ClientsPage() {
           </TableBody>
         </Table>
       </div>
+      <AlertDialog
+        open={deletionTarget !== null}
+        onOpenChange={(open) => !open && setDeletionTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso irá apagar permanentemente{' '}
+              {deletionTarget === 'selected'
+                ? 'os clientes selecionados'
+                : 'este cliente'}
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletionTarget === 'selected') {
+                  handleDeleteSelected();
+                } else if (deletionTarget) {
+                  handleRemoveClient(deletionTarget);
+                }
+                setDeletionTarget(null);
+              }}
+            >
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
