@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { plans } from '@/lib/data';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
 export default function PlansPage() {
   return (
@@ -67,6 +67,7 @@ export default function PlansPage() {
               <TableHead>ID do Plano</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Preço</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -75,6 +76,11 @@ export default function PlansPage() {
                 <TableCell className="font-medium">{plan.id}</TableCell>
                 <TableCell>{plan.name}</TableCell>
                 <TableCell>{plan.price}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
