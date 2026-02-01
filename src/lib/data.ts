@@ -48,13 +48,13 @@ export const plans = [
 ];
 
 export const clients = [
-    { id: 'CLT001', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', planId: 'plan_01' },
-    { id: 'CLT002', name: 'Solutions Co.', email: 'info@solutions.co', phone: '234-567-8901', planId: 'plan_02' },
-    { id: 'CLT003', name: 'Synergy Corp', email: 'support@synergy.com', phone: '345-678-9012', planId: 'plan_01' },
-    { id: 'CLT004', name: 'Quantum Ltd.', email: 'hello@quantum.ltd', phone: '456-789-0123', planId: 'plan_03' },
-    { id: 'CLT005', name: 'Apex Enterprises', email: 'admin@apex.com', phone: '567-890-1234', planId: 'plan_02' },
-    { id: 'CLT006', name: 'Pinnacle Group', email: 'contact@pinnacle.com', phone: '678-901-2345', planId: 'plan_01' },
-    { id: 'CLT007', name: 'Fusion Dynamics', email: 'info@fusion.com', phone: '789-012-3456', planId: 'plan_03' },
+    { id: 'CLT001', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '123-456-7890', planId: 'plan_01', dueDate: '2024-08-25T00:00:00.000Z' },
+    { id: 'CLT002', name: 'Solutions Co.', email: 'info@solutions.co', phone: '234-567-8901', planId: 'plan_02', dueDate: '2024-07-20T00:00:00.000Z' },
+    { id: 'CLT003', name: 'Synergy Corp', email: 'support@synergy.com', phone: '345-678-9012', planId: 'plan_01', dueDate: '2024-09-01T00:00:00.000Z' },
+    { id: 'CLT004', name: 'Quantum Ltd.', email: 'hello@quantum.ltd', phone: '456-789-0123', planId: 'plan_03', dueDate: '2024-07-24T00:00:00.000Z' },
+    { id: 'CLT005', name: 'Apex Enterprises', email: 'admin@apex.com', phone: '567-890-1234', planId: 'plan_02', dueDate: '2024-06-30T00:00:00.000Z' },
+    { id: 'CLT006', name: 'Pinnacle Group', email: 'contact@pinnacle.com', phone: '678-901-2345', planId: 'plan_01', dueDate: '2024-08-15T00:00:00.000Z' },
+    { id: 'CLT007', name: 'Fusion Dynamics', email: 'info@fusion.com', phone: '789-012-3456', planId: 'plan_03', dueDate: '2024-09-10T00:00:00.000Z' },
 ]
 
 export const payments = [

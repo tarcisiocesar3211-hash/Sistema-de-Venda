@@ -23,12 +23,23 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { addDays, format, isToday, isPast, parseISO, isFuture } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type Plan = {
   id: string;
@@ -37,11 +48,12 @@ type Plan = {
 };
 
 type Client = {
-    id: string;
-    name: string;
-    email: string;
-    phone: string;
-    planId: string;
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  planId: string;
+  dueDate: string;
 };
 
 export default function ClientsPage() {
@@ -52,6 +64,10 @@ export default function ClientsPage() {
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientPlanId, setNewClientPlanId] = useState('');
+  const [newClientDueDate, setNewClientDueDate] = useState<Date>();
+  const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
+    'automatico'
+  );
 
   useEffect(() => {
     try {
@@ -68,18 +84,29 @@ export default function ClientsPage() {
     try {
       const storedClients = localStorage.getItem('clients');
       if (storedClients) {
-          setClients(JSON.parse(storedClients));
+        setClients(JSON.parse(storedClients));
       } else {
-          setClients(clientsData);
-          localStorage.setItem('clients', JSON.stringify(clientsData));
+        setClients(clientsData);
+        localStorage.setItem('clients', JSON.stringify(clientsData));
       }
     } catch (error) {
-        setClients(clientsData);
+      setClients(clientsData);
     }
   }, []);
 
   const handleAddClient = () => {
     if (!newClientName || !newClientEmail || !newClientPlanId) return;
+
+    let dueDate: Date;
+    if (dueDateType === 'automatico') {
+      dueDate = addDays(new Date(), 30);
+    } else {
+      if (!newClientDueDate) {
+        // Option to handle if manual date is not selected
+        return;
+      }
+      dueDate = newClientDueDate;
+    }
 
     const newClient: Client = {
       id: `CLT${Date.now()}`,
@@ -87,6 +114,7 @@ export default function ClientsPage() {
       email: newClientEmail,
       phone: newClientPhone,
       planId: newClientPlanId,
+      dueDate: dueDate.toISOString(),
     };
 
     const updatedClients = [...clients, newClient];
@@ -97,6 +125,8 @@ export default function ClientsPage() {
     setNewClientEmail('');
     setNewClientPhone('');
     setNewClientPlanId('');
+    setNewClientDueDate(undefined);
+    setDueDateType('automatico');
   };
 
   const handleRemoveClient = (id: string) => {
@@ -104,14 +134,29 @@ export default function ClientsPage() {
     setClients(updatedClients);
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
-
-  const clientsWithPlanDetails = clients.map(client => {
-    const plan = plans.find(p => p.id === client.planId);
-    return {
-        ...client,
-        planName: plan ? plan.name : 'N/A',
-        planPrice: plan ? plan.price : 'N/A',
+  
+  const getStatus = (dueDate: string): 'Vencido' | 'Vence Hoje' | 'Pago' => {
+    const date = parseISO(dueDate);
+    if (isPast(date) && !isToday(date)) {
+      return 'Vencido';
     }
+    if (isToday(date)) {
+      return 'Vence Hoje';
+    }
+    return 'Pago';
+  };
+
+  const clientsWithPlanDetails = clients.map((client) => {
+    const plan = plans.find((p) => p.id === client.planId);
+    const status = getStatus(client.dueDate);
+
+    return {
+      ...client,
+      planName: plan ? plan.name : 'N/A',
+      planPrice: plan ? plan.price : 'N/A',
+      formattedDueDate: format(parseISO(client.dueDate), 'dd/MM/yyyy'),
+      status: status,
+    };
   });
 
   return (
@@ -131,7 +176,8 @@ export default function ClientsPage() {
               <SheetHeader>
                 <SheetTitle>Adicionar um novo cliente</SheetTitle>
                 <SheetDescription>
-                  Preencha o formulário abaixo para adicionar um novo cliente aos seus registros.
+                  Preencha o formulário abaixo para adicionar um novo cliente aos
+                  seus registros.
                 </SheetDescription>
               </SheetHeader>
               <div className="grid gap-4 py-4">
@@ -139,25 +185,47 @@ export default function ClientsPage() {
                   <Label htmlFor="name" className="text-right">
                     Nome
                   </Label>
-                  <Input id="name" placeholder="Acme Inc." className="col-span-3" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} />
+                  <Input
+                    id="name"
+                    placeholder="Acme Inc."
+                    className="col-span-3"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="email" className="text-right">
                     E-mail
                   </Label>
-                  <Input id="email" type="email" placeholder="contact@acme.com" className="col-span-3" value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="contact@acme.com"
+                    className="col-span-3"
+                    value={newClientEmail}
+                    onChange={(e) => setNewClientEmail(e.target.value)}
+                  />
                 </div>
-                 <div className="grid grid-cols-4 items-center gap-4">
+                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="phone" className="text-right">
                     Telefone
                   </Label>
-                  <Input id="phone" placeholder="123-456-7890" className="col-span-3" value={newClientPhone} onChange={(e) => setNewClientPhone(e.target.value)} />
+                  <Input
+                    id="phone"
+                    placeholder="123-456-7890"
+                    className="col-span-3"
+                    value={newClientPhone}
+                    onChange={(e) => setNewClientPhone(e.target.value)}
+                  />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="plan" className="text-right">
                     Plano
                   </Label>
-                  <Select value={newClientPlanId} onValueChange={setNewClientPlanId}>
+                  <Select
+                    value={newClientPlanId}
+                    onValueChange={setNewClientPlanId}
+                  >
                     <SelectTrigger className="col-span-3">
                       <SelectValue placeholder="Selecione um plano" />
                     </SelectTrigger>
@@ -170,7 +238,63 @@ export default function ClientsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleAddClient} className="w-full">Salvar cliente</Button>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Vencimento</Label>
+                  <RadioGroup
+                    value={dueDateType}
+                    onValueChange={(value) =>
+                      setDueDateType(value as 'automatico' | 'manual')
+                    }
+                    className="col-span-3 flex items-center space-x-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="automatico" id="automatico" />
+                      <Label htmlFor="automatico">Automático (30 dias)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="manual" id="manual" />
+                      <Label htmlFor="manual">Manual</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {dueDateType === 'manual' && (
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="dueDate" className="text-right">
+                      Data
+                    </Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={'outline'}
+                          className={cn(
+                            'col-span-3 justify-start text-left font-normal',
+                            !newClientDueDate && 'text-muted-foreground'
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {newClientDueDate ? (
+                            format(newClientDueDate, 'PPP', { locale: ptBR })
+                          ) : (
+                            <span>Escolha uma data</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={newClientDueDate}
+                          onSelect={setNewClientDueDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                <Button onClick={handleAddClient} className="w-full">
+                  Salvar cliente
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
@@ -180,32 +304,53 @@ export default function ClientsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID do Cliente</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Telefone</TableHead>
               <TableHead>Plano</TableHead>
               <TableHead>Valor do Plano</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {clientsWithPlanDetails.map((client) => (
               <TableRow key={client.id}>
-                <TableCell className="font-medium">{client.id}</TableCell>
-                <TableCell>{client.name}</TableCell>
+                <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell>{client.email}</TableCell>
-                <TableCell>{client.phone}</TableCell>
                 <TableCell>{client.planName}</TableCell>
                 <TableCell>{client.planPrice}</TableCell>
+                <TableCell>{client.formattedDueDate}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      client.status === 'Vencido'
+                        ? 'destructive'
+                        : client.status === 'Vence Hoje'
+                        ? 'secondary'
+                        : 'default'
+                    }
+                    className={cn(
+                      client.status === 'Pago' &&
+                        'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
+                      client.status === 'Vence Hoje' &&
+                        'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                      client.status === 'Vencido' &&
+                        'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+                      'border-none'
+                    )}
+                  >
+                    {client.status}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-right">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveClient(client.id)}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveClient(client.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
