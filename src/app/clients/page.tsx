@@ -136,6 +136,7 @@ export default function ClientsPage() {
   };
   
   const getStatus = (dueDate: string): 'Vencido' | 'Vence Hoje' | 'Pago' => {
+    if (!dueDate) return 'Pago';
     const date = parseISO(dueDate);
     if (isPast(date) && !isToday(date)) {
       return 'Vencido';
@@ -154,7 +155,7 @@ export default function ClientsPage() {
       ...client,
       planName: plan ? plan.name : 'N/A',
       planPrice: plan ? plan.price : 'N/A',
-      formattedDueDate: format(parseISO(client.dueDate), 'dd/MM/yyyy'),
+      formattedDueDate: client.dueDate ? format(parseISO(client.dueDate), 'dd/MM/yyyy') : 'N/A',
       status: status,
     };
   });
