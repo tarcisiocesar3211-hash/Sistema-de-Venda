@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { placeholderImages } from '@/lib/placeholder-images';
@@ -39,24 +38,18 @@ export function UserNav() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem>
-            Perfil
-            <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
+            Website
           </DropdownMenuItem>
           <DropdownMenuItem>
-            Faturamento
-            <DropdownMenuShortcut>⌘B</DropdownMenuShortcut>
+            Contato ZAP
           </DropdownMenuItem>
           <DropdownMenuItem>
-            Configurações
-            <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+            Ereemby
           </DropdownMenuItem>
-          <DropdownMenuItem>Nova Equipe</DropdownMenuItem>
+          <DropdownMenuItem>
+            IPTV
+          </DropdownMenuItem>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          Sair
-          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
