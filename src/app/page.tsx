@@ -10,10 +10,18 @@ import {
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
-import SalesChart from '@/components/sales-chart';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { clients as clientsData } from '@/lib/data';
-import { getMonth, getYear, parseISO, isToday, isYesterday } from 'date-fns';
+import {
+  getMonth,
+  getYear,
+  parseISO,
+  isToday,
+  isYesterday,
+  differenceInDays,
+} from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type Sale = {
   id: string;
@@ -23,7 +31,7 @@ type Sale = {
 };
 
 type Payment = {
-  id: string;
+  id:string;
   clientName: string;
   clientEmail: string;
   amount: string;
@@ -41,6 +49,11 @@ type Client = {
   pin?: string;
 };
 
+type OpenDueClient = Client & {
+  statusText: string;
+  statusType: 'Vencido' | 'Vence Hoje' | 'Pago';
+};
+
 export default function DashboardPage() {
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
@@ -50,6 +63,38 @@ export default function DashboardPage() {
   const [salesToday, setSalesToday] = useState(0);
   const [salesChange, setSalesChange] = useState(0);
   const [dueTodayCount, setDueTodayCount] = useState(0);
+  const [openDues, setOpenDues] = useState<OpenDueClient[]>([]);
+
+  const getStatus = (
+    dueDate: string
+  ): {
+    text: string;
+    type: 'Vencido' | 'Vence Hoje' | 'Pago';
+  } => {
+    if (!dueDate) return { text: '', type: 'Pago' };
+
+    const date = parseISO(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDateMidnight = new Date(date);
+    dueDateMidnight.setHours(0, 0, 0, 0);
+
+    const daysDiff = differenceInDays(dueDateMidnight, today);
+
+    if (daysDiff < 0) {
+      return { text: `Vencido há ${-daysDiff} dia(s)`, type: 'Vencido' };
+    }
+    if (daysDiff === 0) {
+      return { text: 'Vence hoje', type: 'Vence Hoje' };
+    }
+
+    if (daysDiff > 0) {
+      return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago' };
+    }
+
+    return { text: '', type: 'Pago' };
+  };
 
   useEffect(() => {
     try {
@@ -147,17 +192,70 @@ export default function DashboardPage() {
         : clientsData;
       setTotalClients(clients.length);
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       const dueToday = clients.filter(
         (client) => client.dueDate && isToday(parseISO(client.dueDate))
       ).length;
       setDueTodayCount(dueToday);
+
+      const openDuesClients = clients
+        .filter((client) => {
+          if (!client.dueDate) return false;
+          const dueDate = parseISO(client.dueDate);
+          const dueDateMidnight = new Date(dueDate);
+          dueDateMidnight.setHours(0, 0, 0, 0);
+          const daysDiff = differenceInDays(dueDateMidnight, today);
+          return daysDiff <= 0;
+        })
+        .map((client) => {
+          const status = getStatus(client.dueDate);
+          return {
+            ...client,
+            statusText: status.text,
+            statusType: status.type,
+          };
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        );
+
+      setOpenDues(openDuesClients);
     } catch (error) {
       console.error('Failed to load clients from localStorage', error);
       setTotalClients(clientsData.length);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const dueToday = clientsData.filter(
         (client) => client.dueDate && isToday(parseISO(client.dueDate))
       ).length;
       setDueTodayCount(dueToday);
+
+      const openDuesClients = clientsData
+        .filter((client) => {
+          if (!client.dueDate) return false;
+          const dueDate = parseISO(client.dueDate);
+          const dueDateMidnight = new Date(dueDate);
+          dueDateMidnight.setHours(0, 0, 0, 0);
+          const daysDiff = differenceInDays(dueDateMidnight, today);
+          return daysDiff <= 0;
+        })
+        .map((client) => {
+          const status = getStatus(client.dueDate);
+          return {
+            ...client,
+            statusText: status.text,
+            statusType: status.type,
+          };
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        );
+
+      setOpenDues(openDuesClients);
     }
   }, []);
 
@@ -199,7 +297,9 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vendas (Hoje)</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Vendas (Hoje)
+              </CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -230,10 +330,64 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-4">
             <CardHeader>
-              <CardTitle>Visão Geral</CardTitle>
+              <CardTitle>Vencimento em Aberto</CardTitle>
+              <CardDescription>
+                Clientes com vencimentos hoje ou em atraso.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pl-2">
-              <SalesChart />
+            <CardContent>
+              <div className="space-y-4">
+                {openDues.length > 0 ? (
+                  openDues.map((client) => (
+                    <div className="flex items-center" key={client.id}>
+                      <Avatar className="h-9 w-9">
+                        {userAvatar && (
+                          <AvatarImage
+                            src={userAvatar.imageUrl}
+                            alt="Avatar"
+                            data-ai-hint={userAvatar.imageHint}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {client.name
+                            ? client.name.substring(0, 2).toUpperCase()
+                            : ''}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="ml-4 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {client.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {client.email}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">
+                        <Badge
+                          variant={
+                            client.statusType === 'Vencido'
+                              ? 'destructive'
+                              : 'secondary'
+                          }
+                          className={cn(
+                            client.statusType === 'Vence Hoje' &&
+                              'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                            client.statusType === 'Vencido' &&
+                              'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+                            'border-none'
+                          )}
+                        >
+                          {client.statusText}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum vencimento em aberto.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
           <Card className="col-span-4 lg:col-span-3">
