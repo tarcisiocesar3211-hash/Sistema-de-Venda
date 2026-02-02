@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,6 +76,7 @@ type Client = {
   dueDate: string;
   tela?: string;
   pin?: string;
+  suporte?: boolean;
 };
 
 type Payment = {
@@ -99,6 +101,7 @@ export default function ClientsPage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [currentView, setCurrentView] = useState<'all' | 'support'>('all');
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -108,6 +111,7 @@ export default function ClientsPage() {
   const [newClientTela, setNewClientTela] = useState('');
   const [newClientPin, setNewClientPin] = useState('');
   const [newClientDueDate, setNewClientDueDate] = useState<string>('');
+  const [newClientSuporte, setNewClientSuporte] = useState(false);
   const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
     'automatico'
   );
@@ -122,6 +126,7 @@ export default function ClientsPage() {
   const [editedClientTela, setEditedClientTela] = useState('');
   const [editedClientPin, setEditedClientPin] = useState('');
   const [editedClientDueDate, setEditedClientDueDate] = useState<string>('');
+  const [editedClientSuporte, setEditedClientSuporte] = useState(false);
   const [editedDueDateType, setEditedDueDateType] = useState<
     'automatico' | 'manual'
   >('automatico');
@@ -181,6 +186,7 @@ export default function ClientsPage() {
       setEditedClientPlanId(editingClient.planId);
       setEditedClientTela(editingClient.tela || '');
       setEditedClientPin(editingClient.pin || '');
+      setEditedClientSuporte(editingClient.suporte || false);
       if (editingClient.dueDate) {
         setEditedClientDueDate(
           format(parseISO(editingClient.dueDate), 'yyyy-MM-dd')
@@ -215,6 +221,7 @@ export default function ClientsPage() {
       dueDate: dueDate.toISOString(),
       tela: newClientTela,
       pin: newClientPin,
+      suporte: newClientSuporte,
     };
 
     const updatedClients = [...clients, newClient];
@@ -240,6 +247,7 @@ export default function ClientsPage() {
     setNewClientPlanId('');
     setNewClientTela('');
     setNewClientPin('');
+    setNewClientSuporte(false);
     setNewClientDueDate('');
     setDueDateType('automatico');
     setIsAddSheetOpen(false);
@@ -281,6 +289,7 @@ export default function ClientsPage() {
           dueDate: dueDate.toISOString(),
           tela: editedClientTela,
           pin: editedClientPin,
+          suporte: editedClientSuporte,
         };
       }
       return client;
@@ -361,13 +370,17 @@ export default function ClientsPage() {
   };
 
   const sortedClients = useMemo(() => {
-    const filteredClients = searchQuery
+    let filteredClients = searchQuery
       ? clients.filter(
           (client) =>
             client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             client.email.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : clients;
+
+    if (currentView === 'support') {
+      filteredClients = filteredClients.filter((client) => client.suporte);
+    }
 
     const clientsWithPlanDetails = filteredClients.map((client) => {
       const plan = plans.find((p) => p.id === client.planId);
@@ -409,7 +422,7 @@ export default function ClientsPage() {
     }
 
     return sortableClients;
-  }, [clients, plans, sortConfig, searchQuery]);
+  }, [clients, plans, sortConfig, searchQuery, currentView]);
 
   const handleRenewSelected = () => {
     if (selectedClients.length === 0) return;
@@ -500,189 +513,218 @@ export default function ClientsPage() {
         </h2>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex w-full max-w-sm items-center space-x-2">
-          <div className="relative flex-grow">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Pesquisar por nome ou e-mail..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleSearch();
-                }
-              }}
-              className="pl-8"
-            />
+      <Tabs
+        value={currentView}
+        onValueChange={(value) => setCurrentView(value as 'all' | 'support')}
+        className="space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="all">Todos os Clientes</TabsTrigger>
+          <TabsTrigger value="support">Registro de Suporte</TabsTrigger>
+        </TabsList>
+        <div className="flex items-center justify-between">
+          <div className="flex w-full max-w-sm items-center space-x-2">
+            <div className="relative flex-grow">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por nome ou e-mail..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+                className="pl-8"
+              />
+            </div>
+            <Button onClick={handleSearch}>Procurar</Button>
           </div>
-          <Button onClick={handleSearch}>Procurar</Button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={selectedClients.length === 0}>
-                Ações em Massa
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleCopyEmails}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copiar E-mails
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleRenewSelected}>
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                Renovar Selecionados
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeletionTarget('selected')}
-                className="text-red-500 hover:text-red-500 focus:text-red-500"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Apagar Selecionados
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center space-x-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={selectedClients.length === 0}>
+                  Ações em Massa
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleCopyEmails}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar E-mails
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRenewSelected}>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Renovar Selecionados
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeletionTarget('selected')}
+                  className="text-red-500 hover:text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Apagar Selecionados
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-            <SheetTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Cliente
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Adicionar um novo cliente</SheetTitle>
-                <SheetDescription>
-                  Preencha o formulário abaixo para adicionar um novo cliente
-                  aos seus registros.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Nome
-                  </Label>
-                  <Input
-                    id="name"
-                    placeholder="Acme Inc."
-                    className="col-span-3"
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
-                    E-mail
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="contact@acme.com"
-                    className="col-span-3"
-                    value={newClientEmail}
-                    onChange={(e) => setNewClientEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="phone" className="text-right">
-                    Telefone
-                  </Label>
-                  <Input
-                    id="phone"
-                    placeholder="123-456-7890"
-                    className="col-span-3"
-                    value={newClientPhone}
-                    onChange={(e) => setNewClientPhone(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="tela" className="text-right">
-                    Tela
-                  </Label>
-                  <Input
-                    id="tela"
-                    placeholder="Ex: 1"
-                    className="col-span-3"
-                    value={newClientTela}
-                    onChange={(e) => setNewClientTela(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="pin" className="text-right">
-                    PIN
-                  </Label>
-                  <Input
-                    id="pin"
-                    placeholder="Ex: 1234"
-                    className="col-span-3"
-                    value={newClientPin}
-                    onChange={(e) => setNewClientPin(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="plan" className="text-right">
-                    Plano
-                  </Label>
-                  <Select
-                    value={newClientPlanId}
-                    onValueChange={setNewClientPlanId}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione um plano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Vencimento</Label>
-                  <RadioGroup
-                    value={dueDateType}
-                    onValueChange={(value) =>
-                      setDueDateType(value as 'automatico' | 'manual')
-                    }
-                    className="col-span-3 flex items-center space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="automatico" id="automatico" />
-                      <Label htmlFor="automatico">Automático (30 dias)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual">Manual</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {dueDateType === 'manual' && (
+            <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+              <SheetTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Cliente
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Adicionar um novo cliente</SheetTitle>
+                  <SheetDescription>
+                    Preencha o formulário abaixo para adicionar um novo cliente
+                    aos seus registros.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="dueDate" className="text-right">
-                      Data
+                    <Label htmlFor="name" className="text-right">
+                      Nome
                     </Label>
                     <Input
-                      id="dueDate"
-                      type="date"
+                      id="name"
+                      placeholder="Acme Inc."
                       className="col-span-3"
-                      value={newClientDueDate}
-                      onChange={(e) => setNewClientDueDate(e.target.value)}
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
                     />
                   </div>
-                )}
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="email" className="text-right">
+                      E-mail
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="contact@acme.com"
+                      className="col-span-3"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="phone" className="text-right">
+                      Telefone
+                    </Label>
+                    <Input
+                      id="phone"
+                      placeholder="123-456-7890"
+                      className="col-span-3"
+                      value={newClientPhone}
+                      onChange={(e) => setNewClientPhone(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="tela" className="text-right">
+                      Tela
+                    </Label>
+                    <Input
+                      id="tela"
+                      placeholder="Ex: 1"
+                      className="col-span-3"
+                      value={newClientTela}
+                      onChange={(e) => setNewClientTela(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="pin" className="text-right">
+                      PIN
+                    </Label>
+                    <Input
+                      id="pin"
+                      placeholder="Ex: 1234"
+                      className="col-span-3"
+                      value={newClientPin}
+                      onChange={(e) => setNewClientPin(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="plan" className="text-right">
+                      Plano
+                    </Label>
+                    <Select
+                      value={newClientPlanId}
+                      onValueChange={setNewClientPlanId}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Selecione um plano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {plans.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {plan.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Vencimento</Label>
+                    <RadioGroup
+                      value={dueDateType}
+                      onValueChange={(value) =>
+                        setDueDateType(value as 'automatico' | 'manual')
+                      }
+                      className="col-span-3 flex items-center space-x-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="automatico" id="automatico" />
+                        <Label htmlFor="automatico">Automático (30 dias)</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="manual" id="manual" />
+                        <Label htmlFor="manual">Manual</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
 
-                <Button onClick={handleAddClient} className="w-full">
-                  Salvar cliente
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+                  {dueDateType === 'manual' && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="dueDate" className="text-right">
+                        Data
+                      </Label>
+                      <Input
+                        id="dueDate"
+                        type="date"
+                        className="col-span-3"
+                        value={newClientDueDate}
+                        onChange={(e) => setNewClientDueDate(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="suporte" className="text-right">
+                      Suporte
+                    </Label>
+                    <div className="flex items-center space-x-2 col-span-3">
+                      <Checkbox
+                        id="suporte"
+                        checked={newClientSuporte}
+                        onCheckedChange={setNewClientSuporte as (checked: boolean | 'indeterminate') => void}
+                      />
+                      <Label
+                        htmlFor="suporte"
+                        className={cn(newClientSuporte && 'text-red-500')}
+                      >
+                        SIM
+                      </Label>
+                    </div>
+                  </div>
+
+                  <Button onClick={handleAddClient} className="w-full">
+                    Salvar cliente
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
-      </div>
+      </Tabs>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -744,7 +786,14 @@ export default function ClientsPage() {
                   />
                 </TableCell>
                 <TableCell className="font-medium text-xs">
-                  {client.name}
+                  <div className="flex items-center gap-2">
+                    {client.name}
+                    {client.suporte && currentView === 'all' && (
+                      <Badge variant="destructive" className="whitespace-nowrap">
+                        Suporte
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs">{client.email}</TableCell>
                 <TableCell className="text-xs">{client.phone}</TableCell>
@@ -930,6 +979,24 @@ export default function ClientsPage() {
                 />
               </div>
             )}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-suporte" className="text-right">
+                Suporte
+              </Label>
+              <div className="flex items-center space-x-2 col-span-3">
+                <Checkbox
+                  id="edit-suporte"
+                  checked={editedClientSuporte}
+                  onCheckedChange={setEditedClientSuporte as (checked: boolean | 'indeterminate') => void}
+                />
+                <Label
+                  htmlFor="edit-suporte"
+                  className={cn(editedClientSuporte && 'text-red-500')}
+                >
+                  SIM
+                </Label>
+              </div>
+            </div>
             <Button onClick={handleUpdateClient} className="w-full">
               Salvar alterações
             </Button>
