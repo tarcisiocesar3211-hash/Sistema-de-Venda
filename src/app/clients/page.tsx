@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -37,7 +37,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { clients as clientsData, plans as initialPlans } from '@/lib/data';
-import { PlusCircle, Trash2, Pencil, RefreshCcw, Copy } from 'lucide-react';
+import {
+  PlusCircle,
+  Trash2,
+  Pencil,
+  RefreshCcw,
+  Copy,
+  ArrowUpDown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -77,6 +84,11 @@ type Payment = {
   date: string;
 };
 
+type SortConfig = {
+  key: 'status' | null;
+  direction: 'ascending' | 'descending';
+};
+
 export default function ClientsPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -113,6 +125,11 @@ export default function ClientsPage() {
   const [deletionTarget, setDeletionTarget] = useState<
     string | 'selected' | null
   >(null);
+
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: null,
+    direction: 'ascending',
+  });
 
   useEffect(() => {
     try {
@@ -297,8 +314,12 @@ export default function ClientsPage() {
 
   const getStatus = (
     dueDate: string
-  ): { text: string; type: 'Vencido' | 'Vence Hoje' | 'Pago' } => {
-    if (!dueDate) return { text: 'N/A', type: 'Pago' };
+  ): {
+    text: string;
+    type: 'Vencido' | 'Vence Hoje' | 'Pago';
+    daysDiff: number | null;
+  } => {
+    if (!dueDate) return { text: 'N/A', type: 'Pago', daysDiff: null };
 
     const date = parseISO(dueDate);
     const today = new Date();
@@ -310,32 +331,59 @@ export default function ClientsPage() {
     const daysDiff = differenceInDays(dueDateMidnight, today);
 
     if (daysDiff < 0) {
-      return { text: `Vencido há ${-daysDiff} dia(s)`, type: 'Vencido' };
+      return { text: `Vencido há ${-daysDiff} dia(s)`, type: 'Vencido', daysDiff };
     }
     if (daysDiff === 0) {
-      return { text: 'Vence hoje', type: 'Vence Hoje' };
+      return { text: 'Vence hoje', type: 'Vence Hoje', daysDiff };
     }
     if (daysDiff > 0 && daysDiff <= 7) {
-      return { text: `Faltam ${daysDiff} dia(s)`, type: 'Vence Hoje' };
+      return { text: `Faltam ${daysDiff} dia(s)`, type: 'Vence Hoje', daysDiff };
     }
-    return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago' };
+    return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago', daysDiff };
   };
 
-  const clientsWithPlanDetails = clients.map((client) => {
-    const plan = plans.find((p) => p.id === client.planId);
-    const statusInfo = getStatus(client.dueDate);
+  const handleSort = (key: 'status') => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
 
-    return {
-      ...client,
-      planName: plan ? plan.name : 'N/A',
-      planPrice: plan ? plan.price : 'N/A',
-      formattedDueDate: client.dueDate
-        ? format(parseISO(client.dueDate), 'dd/MM/yyyy')
-        : 'N/A',
-      statusText: statusInfo.text,
-      statusType: statusInfo.type,
-    };
-  });
+  const sortedClients = useMemo(() => {
+    const clientsWithPlanDetails = clients.map((client) => {
+      const plan = plans.find((p) => p.id === client.planId);
+      const statusInfo = getStatus(client.dueDate);
+
+      return {
+        ...client,
+        planName: plan ? plan.name : 'N/A',
+        planPrice: plan ? plan.price : 'N/A',
+        formattedDueDate: client.dueDate
+          ? format(parseISO(client.dueDate), 'dd/MM/yyyy')
+          : 'N/A',
+        statusText: statusInfo.text,
+        statusType: statusInfo.type,
+        daysUntilDue: statusInfo.daysDiff,
+      };
+    });
+
+    if (sortConfig.key === 'status') {
+      clientsWithPlanDetails.sort((a, b) => {
+        const aDays = a.daysUntilDue ?? Number.MAX_SAFE_INTEGER;
+        const bDays = b.daysUntilDue ?? Number.MAX_SAFE_INTEGER;
+
+        if (aDays < bDays) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (aDays > bDays) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return clientsWithPlanDetails;
+  }, [clients, plans, sortConfig]);
 
   const handleRenewSelected = () => {
     if (selectedClients.length === 0) return;
@@ -729,12 +777,21 @@ export default function ClientsPage() {
               <TableHead>Plano</TableHead>
               <TableHead>Valor do Plano</TableHead>
               <TableHead>Vencimento</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('status')}
+                  className="px-0 hover:bg-transparent"
+                >
+                  Status
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clientsWithPlanDetails.map((client) => (
+            {sortedClients.map((client) => (
               <TableRow
                 key={client.id}
                 data-state={selectedClients.includes(client.id) && 'selected'}
@@ -752,14 +809,18 @@ export default function ClientsPage() {
                     aria-label="Selecionar linha"
                   />
                 </TableCell>
-                <TableCell className="font-medium text-xs">{client.name}</TableCell>
+                <TableCell className="font-medium text-xs">
+                  {client.name}
+                </TableCell>
                 <TableCell className="text-xs">{client.email}</TableCell>
                 <TableCell className="text-xs">{client.phone}</TableCell>
                 <TableCell className="text-xs">{client.tela}</TableCell>
                 <TableCell className="text-xs">{client.pin}</TableCell>
                 <TableCell className="text-xs">{client.planName}</TableCell>
                 <TableCell className="text-xs">{client.planPrice}</TableCell>
-                <TableCell className="text-xs">{client.formattedDueDate}</TableCell>
+                <TableCell className="text-xs">
+                  {client.formattedDueDate}
+                </TableCell>
                 <TableCell>
                   <Badge
                     variant={
