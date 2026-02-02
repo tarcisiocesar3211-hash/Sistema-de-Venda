@@ -10,6 +10,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Payment = {
   id: string;
@@ -21,6 +33,7 @@ type Payment = {
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   useEffect(() => {
     const storedPayments = localStorage.getItem('payments');
@@ -33,12 +46,25 @@ export default function PaymentsPage() {
     }
   }, []);
 
+  const handleDeleteAllPayments = () => {
+    setPayments([]);
+    localStorage.removeItem('payments');
+    setIsDeleteAlertOpen(false);
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">
           Dashboard de Entradas
         </h2>
+        <Button
+          variant="destructive"
+          onClick={() => setIsDeleteAlertOpen(true)}
+          disabled={payments.length === 0}
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Apagar Tudo
+        </Button>
       </div>
       <div className="rounded-md border">
         <Table>
@@ -74,6 +100,29 @@ export default function PaymentsPage() {
           </TableBody>
         </Table>
       </div>
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={setIsDeleteAlertOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. Isso irá apagar permanentemente
+              todo o histórico de pagamentos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteAllPayments}
+            >
+              Apagar Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
