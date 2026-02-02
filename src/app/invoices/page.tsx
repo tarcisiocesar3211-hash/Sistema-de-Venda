@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -50,6 +50,7 @@ import {
   setDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { SHARED_USER_ID } from '@/lib/shared-user';
 
 type Invoice = {
   invoice: string;
@@ -62,12 +63,12 @@ type Invoice = {
 };
 
 export default function InvoicesPage() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
 
   const invoicesQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'invoices') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'invoices') : null,
+    [firestore]
   );
   const { data: invoicesData } = useCollection<Invoice>(invoicesQuery);
   const invoices = useMemo(() => {
@@ -89,12 +90,12 @@ export default function InvoicesPage() {
   const [newDueDate, setNewDueDate] = useState('');
 
   const handleAddInvoice = () => {
-    if (!newDebtor || !newAmount || !newStatus || !newDueDate || !firestore || !user) return;
+    if (!newDebtor || !newAmount || !newStatus || !newDueDate || !firestore) return;
 
     const newInvoiceId = `INV${Date.now()}`;
     const newInvoice: Omit<Invoice, 'invoice'> & { invoice: string } = {
       invoice: newInvoiceId,
-      ownerId: user.uid,
+      ownerId: SHARED_USER_ID,
       clientName: newDebtor,
       parcela: newParcela,
       amount: newAmount,
@@ -102,7 +103,7 @@ export default function InvoicesPage() {
       dueDate: newDueDate,
     };
     
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', newInvoiceId);
+    const invoiceRef = doc(firestore, 'users', SHARED_USER_ID, 'invoices', newInvoiceId);
     setDocumentNonBlocking(invoiceRef, newInvoice, {merge: true});
 
 
@@ -115,8 +116,8 @@ export default function InvoicesPage() {
   };
 
   const handleRemoveInvoice = (invoiceId: string) => {
-    if(!firestore || !user) return;
-    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', invoiceId);
+    if(!firestore) return;
+    const invoiceRef = doc(firestore, 'users', SHARED_USER_ID, 'invoices', invoiceId);
     deleteDocumentNonBlocking(invoiceRef);
     setDeletionTarget(null);
   };

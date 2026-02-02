@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { SHARED_USER_ID } from '@/lib/shared-user';
 
 type Payment = {
   id: string;
@@ -35,12 +36,12 @@ type Payment = {
 };
 
 export default function PaymentsPage() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
 
   const paymentsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'payments') : null,
+    [firestore]
   );
   const { data: paymentsData } = useCollection<Payment>(paymentsQuery);
   const payments = useMemo(() => {
@@ -53,7 +54,7 @@ export default function PaymentsPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
   const handleDeleteAllPayments = async () => {
-    if (!firestore || !user || !paymentsQuery) return;
+    if (!firestore || !paymentsQuery) return;
     const batch = writeBatch(firestore);
     const querySnapshot = await getDocs(paymentsQuery);
     querySnapshot.forEach((doc) => {

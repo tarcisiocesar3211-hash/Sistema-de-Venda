@@ -52,6 +52,7 @@ import {
   setDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { SHARED_USER_ID } from '@/lib/shared-user';
 
 const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
 type Status = (typeof statuses)[number];
@@ -87,12 +88,12 @@ const categories = [
 ];
 
 export default function EstoquePage() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
 
   const accountsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'accounts') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'accounts') : null,
+    [firestore]
   );
   const { data: accounts } = useCollection<Account>(accountsQuery);
 
@@ -137,13 +138,13 @@ export default function EstoquePage() {
   }, [editingAccount]);
 
   const handleAddAccount = () => {
-    if (!newEmail || !newSenha || !newCategoria || !newStatus || !firestore || !user) {
+    if (!newEmail || !newSenha || !newCategoria || !newStatus || !firestore) {
       return;
     }
 
     const newAccountId = `ACC${Date.now()}`;
     const newAccount: Omit<Account, 'id'> = {
-      ownerId: user.uid,
+      ownerId: SHARED_USER_ID,
       email: newEmail,
       senha: newSenha,
       tela: newTela,
@@ -154,7 +155,7 @@ export default function EstoquePage() {
       observacao: newObservacao,
     };
 
-    const accountRef = doc(firestore, 'users', user.uid, 'accounts', newAccountId);
+    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', newAccountId);
     setDocumentNonBlocking(accountRef, newAccount, { merge: true });
 
     setNewEmail('');
@@ -169,8 +170,8 @@ export default function EstoquePage() {
   };
 
   const handleRemoveAccount = (id: string) => {
-    if (!firestore || !user) return;
-    const accountRef = doc(firestore, 'users', user.uid, 'accounts', id);
+    if (!firestore) return;
+    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', id);
     deleteDocumentNonBlocking(accountRef);
     setDeletionTarget(null);
   };
@@ -182,8 +183,7 @@ export default function EstoquePage() {
       !editedSenha ||
       !editedCategoria ||
       !editedStatus ||
-      !firestore ||
-      !user
+      !firestore
     ) {
       return;
     }
@@ -199,7 +199,7 @@ export default function EstoquePage() {
       observacao: editedObservacao,
     };
 
-    const accountRef = doc(firestore, 'users', user.uid, 'accounts', editingAccount.id);
+    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', editingAccount.id);
     setDocumentNonBlocking(accountRef, updatedAccountData, { merge: true });
 
     setIsEditSheetOpen(false);

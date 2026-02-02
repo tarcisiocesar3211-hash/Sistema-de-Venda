@@ -68,6 +68,7 @@ import {
   setDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
+import { SHARED_USER_ID } from '@/lib/shared-user';
 
 type Plan = {
   id: string;
@@ -104,7 +105,7 @@ type SortConfig = {
 };
 
 export default function ClientsPage() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
 
   const plansQuery = useMemoFirebase(
     () => (firestore ? collection(firestore, 'plans') : null),
@@ -114,15 +115,15 @@ export default function ClientsPage() {
 
   const clientsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'clients') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'clients') : null,
+    [firestore]
   );
   const { data: clients } = useCollection<Client>(clientsQuery);
 
   const paymentsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'payments') : null,
+    [firestore]
   );
   const { data: payments } = useCollection<Payment>(paymentsQuery);
 
@@ -193,7 +194,7 @@ export default function ClientsPage() {
   }, [editingClient]);
 
   const handleAddClient = () => {
-    if (!newClientName || !newClientEmail || !newClientPlanId || !firestore || !user)
+    if (!newClientName || !newClientEmail || !newClientPlanId || !firestore)
       return;
 
     let dueDate: Date;
@@ -208,7 +209,7 @@ export default function ClientsPage() {
 
     const newClientId = `CLT${Date.now()}`;
     const newClient: Omit<Client, 'id'> = {
-      ownerId: user.uid,
+      ownerId: SHARED_USER_ID,
       name: newClientName,
       email: newClientEmail,
       phone: newClientPhone,
@@ -219,20 +220,20 @@ export default function ClientsPage() {
       suporte: newClientSuporte,
     };
 
-    const clientRef = doc(firestore, 'users', user.uid, 'clients', newClientId);
+    const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', newClientId);
     setDocumentNonBlocking(clientRef, newClient, { merge: true });
 
     const plan = plans?.find((p) => p.id === newClient.planId);
     const newPaymentId = `PAY${Date.now()}`;
     const newPayment: Omit<Payment, 'id'> = {
-      ownerId: user.uid,
+      ownerId: SHARED_USER_ID,
       clientId: newClientId,
       clientName: newClient.name,
       clientEmail: newClient.email,
       amount: plan ? plan.price : 'N/A',
       date: new Date().toISOString(),
     };
-    const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+    const paymentRef = doc(firestore, 'users', SHARED_USER_ID, 'payments', newPaymentId);
     setDocumentNonBlocking(paymentRef, newPayment, { merge: true });
 
     setNewClientName('');
@@ -248,8 +249,8 @@ export default function ClientsPage() {
   };
 
   const handleRemoveClient = (id: string) => {
-    if (!firestore || !user) return;
-    const clientRef = doc(firestore, 'users', user.uid, 'clients', id);
+    if (!firestore) return;
+    const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', id);
     deleteDocumentNonBlocking(clientRef);
   };
 
@@ -259,8 +260,7 @@ export default function ClientsPage() {
       !editedClientName ||
       !editedClientEmail ||
       !editedClientPlanId ||
-      !firestore ||
-      !user
+      !firestore
     )
       return;
 
@@ -285,7 +285,7 @@ export default function ClientsPage() {
       suporte: editedClientSuporte,
     };
 
-    const clientRef = doc(firestore, 'users', user.uid, 'clients', editingClient.id);
+    const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', editingClient.id);
     setDocumentNonBlocking(clientRef, updatedClientData, { merge: true });
 
     setIsEditSheetOpen(false);
@@ -293,27 +293,27 @@ export default function ClientsPage() {
   };
 
   const handleRenewClient = (id: string) => {
-    if (!clients || !firestore || !user) return;
+    if (!clients || !firestore) return;
     const clientToRenew = clients.find((c) => c.id === id);
     if (!clientToRenew) return;
 
     const updatedClientData = {
       dueDate: addDays(new Date(), 30).toISOString(),
     };
-    const clientRef = doc(firestore, 'users', user.uid, 'clients', id);
+    const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', id);
     setDocumentNonBlocking(clientRef, updatedClientData, { merge: true });
 
     const plan = plans?.find((p) => p.id === clientToRenew.planId);
     const newPaymentId = `PAY${Date.now()}`;
     const newPayment: Omit<Payment, 'id'> = {
-      ownerId: user.uid,
+      ownerId: SHARED_USER_ID,
       clientId: clientToRenew.id,
       clientName: clientToRenew.name,
       clientEmail: clientToRenew.email,
       amount: plan ? plan.price : 'N/A',
       date: new Date().toISOString(),
     };
-    const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+    const paymentRef = doc(firestore, 'users', SHARED_USER_ID, 'payments', newPaymentId);
     setDocumentNonBlocking(paymentRef, newPayment, { merge: true });
   };
 
@@ -413,21 +413,21 @@ export default function ClientsPage() {
   }, [clients, plans, sortConfig, searchQuery, currentView]);
 
   const handleRenewSelected = () => {
-    if (selectedClients.length === 0 || !firestore || !user || !clients || !plans) return;
+    if (selectedClients.length === 0 || !firestore || !clients || !plans) return;
 
     const batch = writeBatch(firestore);
 
     selectedClients.forEach(clientId => {
         const client = clients.find(c => c.id === clientId);
         if (client) {
-            const clientRef = doc(firestore, 'users', user.uid, 'clients', clientId);
+            const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', clientId);
             batch.update(clientRef, { dueDate: addDays(new Date(), 30).toISOString() });
 
             const plan = plans.find((p) => p.id === client.planId);
             const newPaymentId = `PAY${Date.now()}_${client.id}`;
-            const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+            const paymentRef = doc(firestore, 'users', SHARED_USER_ID, 'payments', newPaymentId);
             batch.set(paymentRef, {
-                ownerId: user.uid,
+                ownerId: SHARED_USER_ID,
                 clientId: client.id,
                 clientName: client.name,
                 clientEmail: client.email,
@@ -445,11 +445,11 @@ export default function ClientsPage() {
   };
 
   const handleDeleteSelected = () => {
-    if (selectedClients.length === 0 || !firestore || !user) return;
+    if (selectedClients.length === 0 || !firestore) return;
 
     const batch = writeBatch(firestore);
     selectedClients.forEach(clientId => {
-        const clientRef = doc(firestore, 'users', user.uid, 'clients', clientId);
+        const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', clientId);
         batch.delete(clientRef);
     });
 

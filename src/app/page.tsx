@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
+import { SHARED_USER_ID } from '@/lib/shared-user';
 
 type Sale = {
   id: string;
@@ -76,19 +77,19 @@ type OpenDueClient = Client & {
 };
 
 export default function DashboardPage() {
-  const { firestore, user } = useFirebase();
+  const { firestore } = useFirebase();
 
   const clientsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'clients') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'clients') : null,
+    [firestore]
   );
   const { data: clientsData } = useCollection<Client>(clientsQuery);
 
   const paymentsQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'payments') : null,
+    [firestore]
   );
   const { data: paymentsData } = useCollection<Payment>(paymentsQuery);
 
@@ -100,8 +101,8 @@ export default function DashboardPage() {
   
   const invoicesQuery = useMemoFirebase(
     () =>
-      firestore && user ? collection(firestore, 'users', user.uid, 'invoices') : null,
-    [firestore, user]
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'invoices') : null,
+    [firestore]
   );
   const { data: initialInvoices } = useCollection<Invoice>(invoicesQuery);
 
