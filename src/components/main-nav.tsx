@@ -14,6 +14,7 @@ export function MainNav({ className, ...props }: HTMLAttributes<HTMLElement>) {
     { href: '/payments', label: 'Pagamentos' },
     { href: '/invoices', label: 'Faturas' },
     { href: '/plans', label: 'Planos' },
+    { href: '/estoque', label: 'Estoque' },
   ];
 
   return (
