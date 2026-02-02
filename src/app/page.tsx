@@ -13,6 +13,7 @@ import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import SalesChart from '@/components/sales-chart';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { clients as clientsData } from '@/lib/data';
+import { getMonth, getYear, parseISO } from 'date-fns';
 
 type Sale = {
   id: string;
@@ -33,6 +34,8 @@ export default function DashboardPage() {
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [totalClients, setTotalClients] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [revenueChange, setRevenueChange] = useState(0);
 
   useEffect(() => {
     try {
@@ -49,6 +52,50 @@ export default function DashboardPage() {
           amount: p.amount,
         }));
         setRecentSales(latestSales);
+
+        const now = new Date();
+        const currentMonth = getMonth(now);
+        const currentYear = getYear(now);
+        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const prevMonthYear =
+          currentMonth === 0 ? currentYear - 1 : currentYear;
+
+        let currentMonthRevenue = 0;
+        let lastMonthRevenue = 0;
+        let total = 0;
+
+        payments.forEach((p) => {
+          const paymentDate = parseISO(p.date);
+          const amountString = p.amount.replace(/[^\d,]/g, '').replace(',', '.');
+          const amount = parseFloat(amountString);
+
+          if (!isNaN(amount)) {
+            total += amount;
+            const paymentMonth = getMonth(paymentDate);
+            const paymentYear = getYear(paymentDate);
+
+            if (paymentYear === currentYear && paymentMonth === currentMonth) {
+              currentMonthRevenue += amount;
+            } else if (
+              paymentYear === prevMonthYear &&
+              paymentMonth === prevMonth
+            ) {
+              lastMonthRevenue += amount;
+            }
+          }
+        });
+
+        setTotalRevenue(total);
+
+        if (lastMonthRevenue > 0) {
+          const change =
+            ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+          setRevenueChange(change);
+        } else if (currentMonthRevenue > 0) {
+          setRevenueChange(100);
+        } else {
+          setRevenueChange(0);
+        }
       }
     } catch (error) {
       console.error('Failed to load recent sales from localStorage', error);
@@ -84,9 +131,12 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
+              <div className="text-2xl font-bold">
+                R$ {totalRevenue.toFixed(2).replace('.', ',')}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +20.1% do mês passado
+                {revenueChange >= 0 ? '+' : ''}
+                {revenueChange.toFixed(1).replace('.', ',')}% do mês passado
               </p>
             </CardContent>
           </Card>
