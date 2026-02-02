@@ -57,7 +57,22 @@ type Account = {
   status: Status;
 };
 
-const categories = ['Netflix', 'Disney', 'HBO', 'Spotify', 'Globoplay'];
+const categories = [
+  'Netflix',
+  'Disney',
+  'HBO',
+  'Spotify',
+  'Globoplay',
+  'Paramount',
+  'ClaroTV+',
+  'Deezer',
+  'UFC',
+  'NBA',
+  'CAPCUT',
+  'CRUNCHYROLL',
+  'PRIME VIDEO',
+  'XBOX',
+];
 const initialAccounts: Account[] = [];
 
 export default function EstoquePage() {
