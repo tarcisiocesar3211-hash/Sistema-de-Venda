@@ -40,7 +40,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { PlusCircle, Trash2, Pencil } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Copy } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
 type Status = (typeof statuses)[number];
@@ -64,6 +65,7 @@ export default function EstoquePage() {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Form states for adding
   const [newEmail, setNewEmail] = useState('');
@@ -185,6 +187,17 @@ export default function EstoquePage() {
     localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
     setIsEditSheetOpen(false);
     setEditingAccount(null);
+  };
+
+  const handleCopyAccount = (account: Account) => {
+    const textToCopy = `E-mail: ${account.email} - Senha: ${account.senha} - Tela: ${account.tela} - Pin: ${account.pin}`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Copiado!',
+        description:
+          'Os dados da conta foram copiados para a área de transferência.',
+      });
+    });
   };
 
   const filteredAccounts = useMemo(() => {
@@ -379,6 +392,13 @@ export default function EstoquePage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleCopyAccount(account)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
