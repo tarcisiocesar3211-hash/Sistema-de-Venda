@@ -12,9 +12,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { placeholderImages } from '@/lib/placeholder-images';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const userAvatar = placeholderImages.find(img => img.id === 'user-avatar');
+  const { toast } = useToast();
+
+  const handleCopyLink = (link: string, label: string) => {
+    navigator.clipboard.writeText(link).then(() => {
+      toast({
+        title: 'Link copiado!',
+        description: `${label} copiado para a área de transferência.`,
+      });
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -37,13 +48,13 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCopyLink('https://www.telaup.shop/', 'Website')}>
             Website
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCopyLink('https://wa.me/558192369032', 'Contato ZAP')}>
             Contato ZAP
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleCopyLink('https://ereemby.com/dashboard', 'Ereemby')}>
             Ereemby
           </DropdownMenuItem>
           <DropdownMenuItem>
