@@ -393,42 +393,58 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {openDues.length > 0 ? (
-                  openDues.map((client) => (
-                    <div className="flex items-center" key={client.id}>
-                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {client.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {client.email}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {client.phone}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {client.planName} - {client.planPrice}
-                        </p>
-                      </div>
-                      <div className="ml-auto font-medium">
-                        <Badge
-                          variant={
-                            client.statusType === 'Vencido'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                          className={cn(
-                            client.statusType === 'Vence Hoje' &&
-                              'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
-                            client.statusType === 'Vencido' &&
-                              'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
-                            'border-none'
-                          )}
-                        >
-                          {client.statusText}
-                        </Badge>
-                      </div>
+                  <>
+                    <div className="grid grid-cols-12 items-center gap-4 text-xs font-medium text-muted-foreground border-b pb-2">
+                      <div className="col-span-2">Nome</div>
+                      <div className="col-span-3">E-mail</div>
+                      <div className="col-span-2">Telefone</div>
+                      <div className="col-span-1">Plano</div>
+                      <div className="col-span-2">Valor</div>
+                      <div className="col-span-2 text-right">Status</div>
                     </div>
-                  ))
+                    <div className="space-y-4">
+                      {openDues.map((client) => (
+                        <div
+                          className="grid grid-cols-12 items-center gap-4"
+                          key={client.id}
+                        >
+                          <p className="col-span-2 text-sm font-medium leading-none truncate">
+                            {client.name}
+                          </p>
+                          <p className="col-span-3 text-sm text-muted-foreground truncate">
+                            {client.email}
+                          </p>
+                          <p className="col-span-2 text-sm text-muted-foreground truncate">
+                            {client.phone}
+                          </p>
+                          <p className="col-span-1 text-sm text-muted-foreground truncate">
+                            {client.planName}
+                          </p>
+                          <p className="col-span-2 text-sm text-muted-foreground truncate">
+                            {client.planPrice}
+                          </p>
+                          <div className="col-span-2 font-medium text-right">
+                            <Badge
+                              variant={
+                                client.statusType === 'Vencido'
+                                  ? 'destructive'
+                                  : 'secondary'
+                              }
+                              className={cn(
+                                client.statusType === 'Vence Hoje' &&
+                                  'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                                client.statusType === 'Vencido' &&
+                                  'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+                                'border-none'
+                              )}
+                            >
+                              {client.statusText}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Nenhum vencimento em aberto.
