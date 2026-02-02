@@ -11,7 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { clients as clientsData } from '@/lib/data';
+import { clients as clientsData, invoices as initialInvoices } from '@/lib/data';
 import {
   getMonth,
   getYear,
@@ -19,6 +19,7 @@ import {
   isToday,
   isYesterday,
   differenceInDays,
+  format,
 } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -31,7 +32,7 @@ type Sale = {
 };
 
 type Payment = {
-  id:string;
+  id: string;
   clientName: string;
   clientEmail: string;
   amount: string;
@@ -49,6 +50,15 @@ type Client = {
   pin?: string;
 };
 
+type Invoice = {
+  invoice: string;
+  clientName: string;
+  parcela?: string;
+  amount: string;
+  status: 'Pago' | 'Pendente' | 'Atrasado';
+  dueDate: string;
+};
+
 type OpenDueClient = Client & {
   statusText: string;
   statusType: 'Vencido' | 'Vence Hoje' | 'Pago';
@@ -64,6 +74,7 @@ export default function DashboardPage() {
   const [salesChange, setSalesChange] = useState(0);
   const [dueTodayCount, setDueTodayCount] = useState(0);
   const [openDues, setOpenDues] = useState<OpenDueClient[]>([]);
+  const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
 
   const getStatus = (
     dueDate: string
@@ -257,6 +268,21 @@ export default function DashboardPage() {
 
       setOpenDues(openDuesClients);
     }
+
+    try {
+      const storedInvoices = localStorage.getItem('invoices');
+      const invoices: Invoice[] = storedInvoices
+        ? JSON.parse(storedInvoices)
+        : initialInvoices;
+
+      const pending = invoices.filter(
+        (invoice) => invoice.status === 'Pendente'
+      );
+      setPendingInvoices(pending);
+    } catch (error) {
+      console.error('Failed to load invoices from localStorage', error);
+      setPendingInvoices([]);
+    }
   }, []);
 
   return (
@@ -426,6 +452,54 @@ export default function DashboardPage() {
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Nenhuma venda recente.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Faturas Pendentes</CardTitle>
+              <CardDescription>Faturas aguardando pagamento.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8">
+                {pendingInvoices.length > 0 ? (
+                  pendingInvoices.map((invoice) => (
+                    <div className="flex items-center" key={invoice.invoice}>
+                      <Avatar className="h-9 w-9">
+                        {userAvatar && (
+                          <AvatarImage
+                            src={userAvatar.imageUrl}
+                            alt="Avatar"
+                            data-ai-hint={userAvatar.imageHint}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {invoice.clientName
+                            ? invoice.clientName.charAt(0)
+                            : ''}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="ml-4 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {invoice.clientName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Vencimento:{' '}
+                          {format(parseISO(invoice.dueDate), 'dd/MM/yyyy')}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">
+                        {invoice.amount}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma fatura pendente.
                   </p>
                 )}
               </div>

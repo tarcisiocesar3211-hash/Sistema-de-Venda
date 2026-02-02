@@ -68,11 +68,11 @@ export const payments = [
 ];
 
 export const invoices = [
-  { invoice: 'INV001', clientName: 'Innovate Inc.', amount: '$250.00', status: 'Pago', dueDate: '2023-01-15' },
-  { invoice: 'INV002', clientName: 'Solutions Co.', amount: '$150.00', status: 'Pendente', dueDate: '2023-02-20' },
-  { invoice: 'INV003', clientName: 'Synergy Corp', amount: '$350.00', status: 'Pago', dueDate: '2023-03-10' },
-  { invoice: 'INV004', clientName: 'Quantum Ltd.', amount: '$450.00', status: 'Atrasado', dueDate: '2023-02-28' },
-  { invoice: 'INV005', clientName: 'Apex Enterprises', amount: '$550.00', status: 'Pago', dueDate: '2023-04-05' },
-  { invoice: 'INV006', clientName: 'Pinnacle Group', amount: '$200.00', status: 'Pendente', dueDate: '2023-05-12' },
-  { invoice: 'INV007', clientName: 'Fusion Dynamics', amount: '$600.00', status: 'Pago', dueDate: '2023-06-18' },
+  { invoice: 'INV001', clientName: 'Innovate Inc.', amount: 'R$ 250,00', status: 'Pago', dueDate: '2023-01-15' },
+  { invoice: 'INV002', clientName: 'Solutions Co.', amount: 'R$ 150,00', status: 'Pendente', dueDate: '2023-02-20' },
+  { invoice: 'INV003', clientName: 'Synergy Corp', amount: 'R$ 350,00', status: 'Pago', dueDate: '2023-03-10' },
+  { invoice: 'INV004', clientName: 'Quantum Ltd.', amount: 'R$ 450,00', status: 'Atrasado', dueDate: '2023-02-28' },
+  { invoice: 'INV005', clientName: 'Apex Enterprises', amount: 'R$ 550,00', status: 'Pago', dueDate: '2023-04-05' },
+  { invoice: 'INV006', clientName: 'Pinnacle Group', amount: 'R$ 200,00', status: 'Pendente', dueDate: '2023-05-12' },
+  { invoice: 'INV007', clientName: 'Fusion Dynamics', amount: 'R$ 600,00', status: 'Pago', dueDate: '2023-06-18' },
 ];
