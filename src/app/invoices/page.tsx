@@ -11,6 +11,23 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { invoices as initialInvoices } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
@@ -24,10 +41,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { format, parseISO } from 'date-fns';
 
 type Invoice = {
   invoice: string;
   clientName: string;
+  parcela?: string;
   amount: string;
   status: 'Pago' | 'Pendente' | 'Atrasado';
   dueDate: string;
@@ -37,19 +56,62 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
 
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [newDebtor, setNewDebtor] = useState('');
+  const [newParcela, setNewParcela] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [newStatus, setNewStatus] = useState<
+    'Pago' | 'Pendente' | 'Atrasado' | ''
+  >('');
+  const [newDueDate, setNewDueDate] = useState('');
+
   useEffect(() => {
     try {
       const storedInvoices = localStorage.getItem('invoices');
       if (storedInvoices) {
-        setInvoices(JSON.parse(storedInvoices));
+        const parsedInvoices: Invoice[] = JSON.parse(storedInvoices);
+        const sortedInvoices = parsedInvoices.sort(
+          (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+        );
+        setInvoices(sortedInvoices);
       } else {
-        setInvoices(initialInvoices);
-        localStorage.setItem('invoices', JSON.stringify(initialInvoices));
+        const sortedInvoices = initialInvoices.sort(
+          (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+        );
+        setInvoices(sortedInvoices);
+        localStorage.setItem('invoices', JSON.stringify(sortedInvoices));
       }
     } catch (error) {
       setInvoices(initialInvoices);
     }
   }, []);
+
+  const handleAddInvoice = () => {
+    if (!newDebtor || !newAmount || !newStatus || !newDueDate) return;
+
+    const newInvoice: Invoice = {
+      invoice: `INV${Date.now()}`,
+      clientName: newDebtor,
+      parcela: newParcela,
+      amount: newAmount,
+      status: newStatus as 'Pago' | 'Pendente' | 'Atrasado',
+      dueDate: newDueDate,
+    };
+
+    const updatedInvoices = [...invoices, newInvoice].sort(
+      (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+    );
+
+    setInvoices(updatedInvoices);
+    localStorage.setItem('invoices', JSON.stringify(updatedInvoices));
+
+    setNewDebtor('');
+    setNewParcela('');
+    setNewAmount('');
+    setNewStatus('');
+    setNewDueDate('');
+    setIsAddSheetOpen(false);
+  };
 
   const handleRemoveInvoice = (invoiceId: string) => {
     const updatedInvoices = invoices.filter(
@@ -67,9 +129,94 @@ export default function InvoicesPage() {
           Faturas
         </h2>
         <div className="flex items-center space-x-2">
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" /> Criar Fatura
-          </Button>
+          <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+            <SheetTrigger asChild>
+              <Button>
+                <PlusCircle className="mr-2 h-4 w-4" /> Criar Fatura
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Criar uma nova fatura</SheetTitle>
+                <SheetDescription>
+                  Preencha o formulário abaixo para adicionar uma nova fatura.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="devedor" className="text-right">
+                    Devedor
+                  </Label>
+                  <Input
+                    id="devedor"
+                    placeholder="Nome do cliente"
+                    className="col-span-3"
+                    value={newDebtor}
+                    onChange={(e) => setNewDebtor(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="parcela" className="text-right">
+                    Parcela
+                  </Label>
+                  <Input
+                    id="parcela"
+                    placeholder="Opcional"
+                    className="col-span-3"
+                    value={newParcela}
+                    onChange={(e) => setNewParcela(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="valor" className="text-right">
+                    Valor
+                  </Label>
+                  <Input
+                    id="valor"
+                    placeholder="R$ 0,00"
+                    className="col-span-3"
+                    value={newAmount}
+                    onChange={(e) => setNewAmount(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={newStatus}
+                    onValueChange={(value) =>
+                      setNewStatus(value as 'Pago' | 'Pendente' | 'Atrasado')
+                    }
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecione um status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pago">Pago</SelectItem>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="Atrasado">Atrasado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="dueDate" className="text-right">
+                    Data de Pagamento
+                  </Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    className="col-span-3"
+                    value={newDueDate}
+                    onChange={(e) => setNewDueDate(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleAddInvoice} className="w-full">
+                  Salvar fatura
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
       <div className="rounded-md border">
@@ -78,9 +225,10 @@ export default function InvoicesPage() {
             <TableRow>
               <TableHead>Fatura #</TableHead>
               <TableHead>Nome do Cliente</TableHead>
+              <TableHead>Parcela</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Data de Vencimento</TableHead>
+              <TableHead>Data de Pagamento</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -89,6 +237,7 @@ export default function InvoicesPage() {
               <TableRow key={invoice.invoice}>
                 <TableCell className="font-medium">{invoice.invoice}</TableCell>
                 <TableCell>{invoice.clientName}</TableCell>
+                <TableCell>{invoice.parcela || 'N/A'}</TableCell>
                 <TableCell>{invoice.amount}</TableCell>
                 <TableCell>
                   <Badge
@@ -112,7 +261,9 @@ export default function InvoicesPage() {
                     {invoice.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{invoice.dueDate}</TableCell>
+                <TableCell>
+                  {format(parseISO(invoice.dueDate), 'dd/MM/yyyy')}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="ghost"
