@@ -8,26 +8,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const router = useRouter();
   const { toast } = useToast();
   const fixedPassword = 'tarcio2010';
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    const authStatus = localStorage.getItem('isAuthenticated') === 'true';
-    setIsAuthenticated(authStatus);
-    if (authStatus) {
+    if (!isUserLoading && user) {
       router.replace('/');
     }
-  }, [router]);
+  }, [user, isUserLoading, router]);
 
   const handleLogin = () => {
     if (password === fixedPassword) {
-      localStorage.setItem('isAuthenticated', 'true');
-      router.push('/');
+      initiateAnonymousSignIn(auth);
     } else {
       toast({
         variant: 'destructive',
@@ -37,7 +36,7 @@ export default function LoginPage() {
     }
   };
   
-  if (isAuthenticated === null || isAuthenticated === true) {
+  if (isUserLoading || user) {
     return null; // Or a loading spinner
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -12,11 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
 import {
-  clients as clientsData,
-  invoices as initialInvoices,
-  plans as initialPlans,
-} from '@/lib/data';
-import {
   getMonth,
   getYear,
   parseISO,
@@ -27,6 +22,8 @@ import {
 } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 type Sale = {
   id: string;
@@ -79,6 +76,35 @@ type OpenDueClient = Client & {
 };
 
 export default function DashboardPage() {
+  const { firestore, user } = useFirebase();
+
+  const clientsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'clients') : null,
+    [firestore, user]
+  );
+  const { data: clientsData } = useCollection<Client>(clientsQuery);
+
+  const paymentsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
+    [firestore, user]
+  );
+  const { data: paymentsData } = useCollection<Payment>(paymentsQuery);
+
+  const plansQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'plans') : null),
+    [firestore]
+  );
+  const { data: initialPlans } = useCollection<Plan>(plansQuery);
+  
+  const invoicesQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'invoices') : null,
+    [firestore, user]
+  );
+  const { data: initialInvoices } = useCollection<Invoice>(invoicesQuery);
+
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [totalClients, setTotalClients] = useState(0);
@@ -122,213 +148,148 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    try {
-      const storedPayments = localStorage.getItem('payments');
-      if (storedPayments) {
-        const payments: Payment[] = JSON.parse(storedPayments);
-        const now = new Date();
-        const currentMonth = getMonth(now);
-        const currentYear = getYear(now);
-        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-        const prevMonthYear =
-          currentMonth === 0 ? currentYear - 1 : currentYear;
+    if (paymentsData) {
+      const payments: Payment[] = paymentsData;
+      const now = new Date();
+      const currentMonth = getMonth(now);
+      const currentYear = getYear(now);
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevMonthYear =
+        currentMonth === 0 ? currentYear - 1 : currentYear;
 
-        let currentMonthRevenue = 0;
-        let lastMonthRevenue = 0;
-        let total = 0;
-        let todaySalesValue = 0;
-        let yesterdaySalesValue = 0;
+      let currentMonthRevenue = 0;
+      let lastMonthRevenue = 0;
+      let total = 0;
+      let todaySalesValue = 0;
+      let yesterdaySalesValue = 0;
 
-        payments.forEach((p) => {
-          const paymentDate = parseISO(p.date);
-          const amountString = p.amount.replace(/[^\d,]/g, '').replace(',', '.');
-          const amount = parseFloat(amountString);
+      payments.forEach((p) => {
+        const paymentDate = parseISO(p.date);
+        const amountString = p.amount.replace(/[^\d,]/g, '').replace(',', '.');
+        const amount = parseFloat(amountString);
 
-          if (!isNaN(amount)) {
-            total += amount;
-            const paymentMonth = getMonth(paymentDate);
-            const paymentYear = getYear(paymentDate);
+        if (!isNaN(amount)) {
+          total += amount;
+          const paymentMonth = getMonth(paymentDate);
+          const paymentYear = getYear(paymentDate);
 
-            if (paymentYear === currentYear && paymentMonth === currentMonth) {
-              currentMonthRevenue += amount;
-            } else if (
-              paymentYear === prevMonthYear &&
-              paymentMonth === prevMonth
-            ) {
-              lastMonthRevenue += amount;
-            }
-
-            if (isToday(paymentDate)) {
-              todaySalesValue += amount;
-            } else if (isYesterday(paymentDate)) {
-              yesterdaySalesValue += amount;
-            }
+          if (paymentYear === currentYear && paymentMonth === currentMonth) {
+            currentMonthRevenue += amount;
+          } else if (
+            paymentYear === prevMonthYear &&
+            paymentMonth === prevMonth
+          ) {
+            lastMonthRevenue += amount;
           }
-        });
 
-        setTotalRevenue(total);
-
-        if (lastMonthRevenue > 0) {
-          const change =
-            ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
-          setRevenueChange(change);
-        } else if (currentMonthRevenue > 0) {
-          setRevenueChange(100);
-        } else {
-          setRevenueChange(0);
+          if (isToday(paymentDate)) {
+            todaySalesValue += amount;
+          } else if (isYesterday(paymentDate)) {
+            yesterdaySalesValue += amount;
+          }
         }
+      });
 
-        setSalesToday(todaySalesValue);
-        if (yesterdaySalesValue > 0) {
-          const change =
-            ((todaySalesValue - yesterdaySalesValue) / yesterdaySalesValue) *
-            100;
-          setSalesChange(change);
-        } else if (todaySalesValue > 0) {
-          setSalesChange(100);
-        } else {
-          setSalesChange(0);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load data from localStorage', error);
-      setTotalRevenue(0);
-      setRevenueChange(0);
-      setSalesToday(0);
-      setSalesChange(0);
-    }
+      setTotalRevenue(total);
 
-    try {
-      const storedClients = localStorage.getItem('clients');
-      const clients: Client[] = storedClients
-        ? JSON.parse(storedClients)
-        : clientsData;
-      setTotalClients(clients.length);
-
-      const storedPlans = localStorage.getItem('plans');
-      const plans: Plan[] = storedPlans
-        ? JSON.parse(storedPlans)
-        : initialPlans;
-
-      const storedPayments = localStorage.getItem('payments');
-      if (storedPayments) {
-        const payments: Payment[] = JSON.parse(storedPayments);
-        const sortedPayments = payments.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        const latestSales = sortedPayments.slice(0, 5).map((p) => {
-          const client = p.clientId
-            ? clients.find((c) => c.id === p.clientId)
-            : undefined;
-          const plan = client
-            ? plans.find((pl) => pl.id === client.planId)
-            : undefined;
-          return {
-            id: p.id,
-            name: p.clientName,
-            email: p.clientEmail,
-            amount: p.amount,
-            planName: plan ? plan.name : 'N/A',
-          };
-        });
-        setRecentSales(latestSales);
+      if (lastMonthRevenue > 0) {
+        const change =
+          ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+        setRevenueChange(change);
+      } else if (currentMonthRevenue > 0) {
+        setRevenueChange(100);
       } else {
-        setRecentSales([]);
+        setRevenueChange(0);
       }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const dueToday = clients.filter(
-        (client) => client.dueDate && isToday(parseISO(client.dueDate))
-      ).length;
-      setDueTodayCount(dueToday);
-
-      const openDuesClients = clients
-        .filter((client) => {
-          if (!client.dueDate) return false;
-          const dueDate = parseISO(client.dueDate);
-          const dueDateMidnight = new Date(dueDate);
-          dueDateMidnight.setHours(0, 0, 0, 0);
-          const daysDiff = differenceInDays(dueDateMidnight, today);
-          return daysDiff <= 0;
-        })
-        .map((client) => {
-          const status = getStatus(client.dueDate);
-          const plan = plans.find((p) => p.id === client.planId);
-          return {
-            ...client,
-            statusText: status.text,
-            statusType: status.type,
-            planName: plan ? plan.name : 'N/A',
-            planPrice: plan ? plan.price : 'N/A',
-          };
-        })
-        .sort(
-          (a, b) =>
-            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        );
-
-      setOpenDues(openDuesClients);
-    } catch (error) {
-      console.error('Failed to load clients from localStorage', error);
-      setTotalClients(clientsData.length);
-
-      const storedPlans = localStorage.getItem('plans');
-      const plans: Plan[] = storedPlans
-        ? JSON.parse(storedPlans)
-        : initialPlans;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dueToday = clientsData.filter(
-        (client) => client.dueDate && isToday(parseISO(client.dueDate))
-      ).length;
-      setDueTodayCount(dueToday);
-
-      const openDuesClients = clientsData
-        .filter((client) => {
-          if (!client.dueDate) return false;
-          const dueDate = parseISO(client.dueDate);
-          const dueDateMidnight = new Date(dueDate);
-          dueDateMidnight.setHours(0, 0, 0, 0);
-          const daysDiff = differenceInDays(dueDateMidnight, today);
-          return daysDiff <= 0;
-        })
-        .map((client) => {
-          const status = getStatus(client.dueDate);
-          const plan = plans.find((p) => p.id === client.planId);
-          return {
-            ...client,
-            statusText: status.text,
-            statusType: status.type,
-            planName: plan ? plan.name : 'N/A',
-            planPrice: plan ? plan.price : 'N/A',
-          };
-        })
-        .sort(
-          (a, b) =>
-            new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-        );
-
-      setOpenDues(openDuesClients);
+      setSalesToday(todaySalesValue);
+      if (yesterdaySalesValue > 0) {
+        const change =
+          ((todaySalesValue - yesterdaySalesValue) / yesterdaySalesValue) *
+          100;
+        setSalesChange(change);
+      } else if (todaySalesValue > 0) {
+        setSalesChange(100);
+      } else {
+        setSalesChange(0);
+      }
     }
+  }, [paymentsData]);
 
-    try {
-      const storedInvoices = localStorage.getItem('invoices');
-      const invoices: Invoice[] = storedInvoices
-        ? JSON.parse(storedInvoices)
-        : initialInvoices;
+  useEffect(() => {
+    const clients: Client[] = clientsData ?? [];
+    setTotalClients(clients.length);
 
-      const pending = invoices.filter(
-        (invoice) => invoice.status === 'Pendente'
+    const plans: Plan[] = initialPlans ?? [];
+
+    if (paymentsData) {
+      const payments: Payment[] = paymentsData;
+      const sortedPayments = payments.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
-      setPendingInvoices(pending);
-    } catch (error) {
-      console.error('Failed to load invoices from localStorage', error);
-      setPendingInvoices([]);
+      const latestSales = sortedPayments.slice(0, 5).map((p) => {
+        const client = p.clientId
+          ? clients.find((c) => c.id === p.clientId)
+          : undefined;
+        const plan = client
+          ? plans.find((pl) => pl.id === client.planId)
+          : undefined;
+        return {
+          id: p.id,
+          name: p.clientName,
+          email: p.clientEmail,
+          amount: p.amount,
+          planName: plan ? plan.name : 'N/A',
+        };
+      });
+      setRecentSales(latestSales);
+    } else {
+      setRecentSales([]);
     }
-  }, []);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueToday = clients.filter(
+      (client) => client.dueDate && isToday(parseISO(client.dueDate))
+    ).length;
+    setDueTodayCount(dueToday);
+
+    const openDuesClients = clients
+      .filter((client) => {
+        if (!client.dueDate) return false;
+        const dueDate = parseISO(client.dueDate);
+        const dueDateMidnight = new Date(dueDate);
+        dueDateMidnight.setHours(0, 0, 0, 0);
+        const daysDiff = differenceInDays(dueDateMidnight, today);
+        return daysDiff <= 0;
+      })
+      .map((client) => {
+        const status = getStatus(client.dueDate);
+        const plan = plans.find((p) => p.id === client.planId);
+        return {
+          ...client,
+          statusText: status.text,
+          statusType: status.type,
+          planName: plan ? plan.name : 'N/A',
+          planPrice: plan ? plan.price : 'N/A',
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      );
+
+    setOpenDues(openDuesClients);
+  }, [clientsData, initialPlans, paymentsData]);
+
+  useEffect(() => {
+    const invoices: Invoice[] = initialInvoices ?? [];
+    const pending = invoices.filter(
+      (invoice) => invoice.status === 'Pendente'
+    );
+    setPendingInvoices(pending);
+  }, [initialInvoices]);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

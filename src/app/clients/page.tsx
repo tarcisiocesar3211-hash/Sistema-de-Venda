@@ -37,7 +37,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { clients as clientsData, plans as initialPlans } from '@/lib/data';
 import {
   PlusCircle,
   Trash2,
@@ -60,6 +59,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  useFirebase,
+  useCollection,
+  useMemoFirebase,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 
 type Plan = {
   id: string;
@@ -69,6 +77,7 @@ type Plan = {
 
 type Client = {
   id: string;
+  ownerId: string;
   name: string;
   email: string;
   phone: string;
@@ -81,6 +90,7 @@ type Client = {
 
 type Payment = {
   id: string;
+  ownerId: string;
   clientId: string;
   clientName: string;
   clientEmail: string;
@@ -94,16 +104,34 @@ type SortConfig = {
 };
 
 export default function ClientsPage() {
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { firestore, user } = useFirebase();
+
+  const plansQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'plans') : null),
+    [firestore]
+  );
+  const { data: plans } = useCollection<Plan>(plansQuery);
+
+  const clientsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'clients') : null,
+    [firestore, user]
+  );
+  const { data: clients } = useCollection<Client>(clientsQuery);
+
+  const paymentsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
+    [firestore, user]
+  );
+  const { data: payments } = useCollection<Payment>(paymentsQuery);
+
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [currentView, setCurrentView] = useState<'all' | 'support'>('all');
 
-  // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -117,7 +145,6 @@ export default function ClientsPage() {
   );
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
 
-  // State for editing a client
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editedClientName, setEditedClientName] = useState('');
   const [editedClientEmail, setEditedClientEmail] = useState('');
@@ -145,40 +172,6 @@ export default function ClientsPage() {
   };
 
   useEffect(() => {
-    try {
-      const storedPlans = localStorage.getItem('plans');
-      if (storedPlans) {
-        setPlans(JSON.parse(storedPlans));
-      } else {
-        setPlans(initialPlans);
-      }
-    } catch (error) {
-      setPlans(initialPlans);
-    }
-
-    try {
-      const storedClients = localStorage.getItem('clients');
-      if (storedClients) {
-        setClients(JSON.parse(storedClients));
-      } else {
-        setClients(clientsData);
-        localStorage.setItem('clients', JSON.stringify(clientsData));
-      }
-    } catch (error) {
-      setClients(clientsData);
-    }
-
-    try {
-      const storedPayments = localStorage.getItem('payments');
-      if (storedPayments) {
-        setPayments(JSON.parse(storedPayments));
-      }
-    } catch (error) {
-      setPayments([]);
-    }
-  }, []);
-
-  useEffect(() => {
     if (editingClient) {
       setEditedClientName(editingClient.name);
       setEditedClientEmail(editingClient.email);
@@ -200,7 +193,8 @@ export default function ClientsPage() {
   }, [editingClient]);
 
   const handleAddClient = () => {
-    if (!newClientName || !newClientEmail || !newClientPlanId) return;
+    if (!newClientName || !newClientEmail || !newClientPlanId || !firestore || !user)
+      return;
 
     let dueDate: Date;
     if (dueDateType === 'automatico') {
@@ -212,8 +206,9 @@ export default function ClientsPage() {
       dueDate = parseISO(newClientDueDate);
     }
 
-    const newClient: Client = {
-      id: `CLT${Date.now()}`,
+    const newClientId = `CLT${Date.now()}`;
+    const newClient: Omit<Client, 'id'> = {
+      ownerId: user.uid,
       name: newClientName,
       email: newClientEmail,
       phone: newClientPhone,
@@ -224,22 +219,21 @@ export default function ClientsPage() {
       suporte: newClientSuporte,
     };
 
-    const updatedClients = [...clients, newClient];
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    const clientRef = doc(firestore, 'users', user.uid, 'clients', newClientId);
+    setDocumentNonBlocking(clientRef, newClient, { merge: true });
 
-    const plan = plans.find((p) => p.id === newClient.planId);
-    const newPayment: Payment = {
-      id: `PAY${Date.now()}`,
-      clientId: newClient.id,
+    const plan = plans?.find((p) => p.id === newClient.planId);
+    const newPaymentId = `PAY${Date.now()}`;
+    const newPayment: Omit<Payment, 'id'> = {
+      ownerId: user.uid,
+      clientId: newClientId,
       clientName: newClient.name,
       clientEmail: newClient.email,
       amount: plan ? plan.price : 'N/A',
       date: new Date().toISOString(),
     };
-    const updatedPayments = [...payments, newPayment];
-    setPayments(updatedPayments);
-    localStorage.setItem('payments', JSON.stringify(updatedPayments));
+    const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+    setDocumentNonBlocking(paymentRef, newPayment, { merge: true });
 
     setNewClientName('');
     setNewClientEmail('');
@@ -254,9 +248,9 @@ export default function ClientsPage() {
   };
 
   const handleRemoveClient = (id: string) => {
-    const updatedClients = clients.filter((client) => client.id !== id);
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    if (!firestore || !user) return;
+    const clientRef = doc(firestore, 'users', user.uid, 'clients', id);
+    deleteDocumentNonBlocking(clientRef);
   };
 
   const handleUpdateClient = () => {
@@ -264,7 +258,9 @@ export default function ClientsPage() {
       !editingClient ||
       !editedClientName ||
       !editedClientEmail ||
-      !editedClientPlanId
+      !editedClientPlanId ||
+      !firestore ||
+      !user
     )
       return;
 
@@ -278,57 +274,47 @@ export default function ClientsPage() {
       dueDate = parseISO(editedClientDueDate);
     }
 
-    const updatedClients = clients.map((client) => {
-      if (client.id === editingClient.id) {
-        return {
-          ...client,
-          name: editedClientName,
-          email: editedClientEmail,
-          phone: editedClientPhone,
-          planId: editedClientPlanId,
-          dueDate: dueDate.toISOString(),
-          tela: editedClientTela,
-          pin: editedClientPin,
-          suporte: editedClientSuporte,
-        };
-      }
-      return client;
-    });
+    const updatedClientData = {
+      name: editedClientName,
+      email: editedClientEmail,
+      phone: editedClientPhone,
+      planId: editedClientPlanId,
+      dueDate: dueDate.toISOString(),
+      tela: editedClientTela,
+      pin: editedClientPin,
+      suporte: editedClientSuporte,
+    };
 
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    const clientRef = doc(firestore, 'users', user.uid, 'clients', editingClient.id);
+    setDocumentNonBlocking(clientRef, updatedClientData, { merge: true });
+
     setIsEditSheetOpen(false);
     setEditingClient(null);
   };
 
   const handleRenewClient = (id: string) => {
+    if (!clients || !firestore || !user) return;
     const clientToRenew = clients.find((c) => c.id === id);
     if (!clientToRenew) return;
 
-    const updatedClients = clients.map((client) => {
-      if (client.id === id) {
-        return {
-          ...client,
-          dueDate: addDays(new Date(), 30).toISOString(),
-        };
-      }
-      return client;
-    });
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    const updatedClientData = {
+      dueDate: addDays(new Date(), 30).toISOString(),
+    };
+    const clientRef = doc(firestore, 'users', user.uid, 'clients', id);
+    setDocumentNonBlocking(clientRef, updatedClientData, { merge: true });
 
-    const plan = plans.find((p) => p.id === clientToRenew.planId);
-    const newPayment: Payment = {
-      id: `PAY${Date.now()}`,
+    const plan = plans?.find((p) => p.id === clientToRenew.planId);
+    const newPaymentId = `PAY${Date.now()}`;
+    const newPayment: Omit<Payment, 'id'> = {
+      ownerId: user.uid,
       clientId: clientToRenew.id,
       clientName: clientToRenew.name,
       clientEmail: clientToRenew.email,
       amount: plan ? plan.price : 'N/A',
       date: new Date().toISOString(),
     };
-    const updatedPayments = [...payments, newPayment];
-    setPayments(updatedPayments);
-    localStorage.setItem('payments', JSON.stringify(updatedPayments));
+    const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+    setDocumentNonBlocking(paymentRef, newPayment, { merge: true });
   };
 
   const getStatus = (
@@ -370,6 +356,8 @@ export default function ClientsPage() {
   };
 
   const sortedClients = useMemo(() => {
+    if (!clients || !plans) return [];
+    
     let filteredClients = searchQuery
       ? clients.filter(
           (client) =>
@@ -425,56 +413,56 @@ export default function ClientsPage() {
   }, [clients, plans, sortConfig, searchQuery, currentView]);
 
   const handleRenewSelected = () => {
-    if (selectedClients.length === 0) return;
+    if (selectedClients.length === 0 || !firestore || !user || !clients || !plans) return;
 
-    let updatedClients = [...clients];
-    const newPayments: Payment[] = [];
+    const batch = writeBatch(firestore);
 
-    updatedClients = updatedClients.map((client) => {
-      if (selectedClients.includes(client.id)) {
-        const plan = plans.find((p) => p.id === client.planId);
-        const newPayment: Payment = {
-          id: `PAY${Date.now()}_${client.id}`,
-          clientId: client.id,
-          clientName: client.name,
-          clientEmail: client.email,
-          amount: plan ? plan.price : 'N/A',
-          date: new Date().toISOString(),
-        };
-        newPayments.push(newPayment);
+    selectedClients.forEach(clientId => {
+        const client = clients.find(c => c.id === clientId);
+        if (client) {
+            const clientRef = doc(firestore, 'users', user.uid, 'clients', clientId);
+            batch.update(clientRef, { dueDate: addDays(new Date(), 30).toISOString() });
 
-        return {
-          ...client,
-          dueDate: addDays(new Date(), 30).toISOString(),
-        };
-      }
-      return client;
+            const plan = plans.find((p) => p.id === client.planId);
+            const newPaymentId = `PAY${Date.now()}_${client.id}`;
+            const paymentRef = doc(firestore, 'users', user.uid, 'payments', newPaymentId);
+            batch.set(paymentRef, {
+                ownerId: user.uid,
+                clientId: client.id,
+                clientName: client.name,
+                clientEmail: client.email,
+                amount: plan ? plan.price : 'N/A',
+                date: new Date().toISOString(),
+            });
+        }
     });
 
-    const updatedPayments = [...payments, ...newPayments];
-
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    setPayments(updatedPayments);
-    localStorage.setItem('payments', JSON.stringify(updatedPayments));
-
-    setSelectedClients([]);
+    batch.commit().then(() => {
+        setSelectedClients([]);
+    }).catch(error => {
+        console.error("Error renewing selected clients: ", error);
+    });
   };
 
   const handleDeleteSelected = () => {
-    if (selectedClients.length === 0) return;
+    if (selectedClients.length === 0 || !firestore || !user) return;
 
-    const updatedClients = clients.filter(
-      (client) => !selectedClients.includes(client.id)
-    );
-    setClients(updatedClients);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    setSelectedClients([]);
-    setDeletionTarget(null);
+    const batch = writeBatch(firestore);
+    selectedClients.forEach(clientId => {
+        const clientRef = doc(firestore, 'users', user.uid, 'clients', clientId);
+        batch.delete(clientRef);
+    });
+
+    batch.commit().then(() => {
+        setSelectedClients([]);
+        setDeletionTarget(null);
+    }).catch(error => {
+        console.error("Error deleting selected clients: ", error);
+    });
   };
 
   const handleCopyEmails = () => {
-    if (selectedClients.length === 0) return;
+    if (selectedClients.length === 0 || !clients) return;
 
     const emailsToCopy = clients
       .filter((client) => selectedClients.includes(client.id))
@@ -654,7 +642,7 @@ export default function ClientsPage() {
                         <SelectValue placeholder="Selecione um plano" />
                       </SelectTrigger>
                       <SelectContent>
-                        {plans.map((plan) => (
+                        {plans?.map((plan) => (
                           <SelectItem key={plan.id} value={plan.id}>
                             {plan.name}
                           </SelectItem>
@@ -935,7 +923,7 @@ export default function ClientsPage() {
                   <SelectValue placeholder="Selecione um plano" />
                 </SelectTrigger>
                 <SelectContent>
-                  {plans.map((plan) => (
+                  {plans?.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
                       {plan.name}
                     </SelectItem>

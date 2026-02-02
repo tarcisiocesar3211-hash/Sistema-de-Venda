@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { invoices as initialInvoices } from '@/lib/data';
 import { cn } from '@/lib/utils';
 import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import {
@@ -42,9 +41,19 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { format, parseISO } from 'date-fns';
+import {
+  useFirebase,
+  useCollection,
+  useMemoFirebase,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 type Invoice = {
   invoice: string;
+  ownerId: string;
   clientName: string;
   parcela?: string;
   amount: string;
@@ -53,7 +62,21 @@ type Invoice = {
 };
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const { firestore, user } = useFirebase();
+
+  const invoicesQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'invoices') : null,
+    [firestore, user]
+  );
+  const { data: invoicesData } = useCollection<Invoice>(invoicesQuery);
+  const invoices = useMemo(() => {
+    if (!invoicesData) return [];
+    return [...invoicesData].sort(
+      (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
+    );
+  }, [invoicesData]);
+
   const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
 
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -65,45 +88,23 @@ export default function InvoicesPage() {
   >('');
   const [newDueDate, setNewDueDate] = useState('');
 
-  useEffect(() => {
-    try {
-      const storedInvoices = localStorage.getItem('invoices');
-      if (storedInvoices) {
-        const parsedInvoices: Invoice[] = JSON.parse(storedInvoices);
-        const sortedInvoices = parsedInvoices.sort(
-          (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-        );
-        setInvoices(sortedInvoices);
-      } else {
-        const sortedInvoices = initialInvoices.sort(
-          (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-        );
-        setInvoices(sortedInvoices);
-        localStorage.setItem('invoices', JSON.stringify(sortedInvoices));
-      }
-    } catch (error) {
-      setInvoices(initialInvoices);
-    }
-  }, []);
-
   const handleAddInvoice = () => {
-    if (!newDebtor || !newAmount || !newStatus || !newDueDate) return;
+    if (!newDebtor || !newAmount || !newStatus || !newDueDate || !firestore || !user) return;
 
-    const newInvoice: Invoice = {
-      invoice: `INV${Date.now()}`,
+    const newInvoiceId = `INV${Date.now()}`;
+    const newInvoice: Omit<Invoice, 'invoice'> & { invoice: string } = {
+      invoice: newInvoiceId,
+      ownerId: user.uid,
       clientName: newDebtor,
       parcela: newParcela,
       amount: newAmount,
       status: newStatus as 'Pago' | 'Pendente' | 'Atrasado',
       dueDate: newDueDate,
     };
+    
+    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', newInvoiceId);
+    setDocumentNonBlocking(invoiceRef, newInvoice, {merge: true});
 
-    const updatedInvoices = [...invoices, newInvoice].sort(
-      (a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()
-    );
-
-    setInvoices(updatedInvoices);
-    localStorage.setItem('invoices', JSON.stringify(updatedInvoices));
 
     setNewDebtor('');
     setNewParcela('');
@@ -114,11 +115,9 @@ export default function InvoicesPage() {
   };
 
   const handleRemoveInvoice = (invoiceId: string) => {
-    const updatedInvoices = invoices.filter(
-      (invoice) => invoice.invoice !== invoiceId
-    );
-    setInvoices(updatedInvoices);
-    localStorage.setItem('invoices', JSON.stringify(updatedInvoices));
+    if(!firestore || !user) return;
+    const invoiceRef = doc(firestore, 'users', user.uid, 'invoices', invoiceId);
+    deleteDocumentNonBlocking(invoiceRef);
     setDeletionTarget(null);
   };
 
@@ -271,6 +270,7 @@ export default function InvoicesPage() {
                     onClick={() => {
                       /* Lógica de edição aqui */
                     }}
+                    disabled
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>

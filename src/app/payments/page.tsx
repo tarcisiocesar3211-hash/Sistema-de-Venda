@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableBody,
@@ -22,6 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 
 type Payment = {
   id: string;
@@ -33,23 +35,31 @@ type Payment = {
 };
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { firestore, user } = useFirebase();
+
+  const paymentsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'payments') : null,
+    [firestore, user]
+  );
+  const { data: paymentsData } = useCollection<Payment>(paymentsQuery);
+  const payments = useMemo(() => {
+    if (!paymentsData) return [];
+    return [...paymentsData].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [paymentsData]);
+
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
-  useEffect(() => {
-    const storedPayments = localStorage.getItem('payments');
-    if (storedPayments) {
-      const parsedPayments: Payment[] = JSON.parse(storedPayments);
-      const sortedPayments = parsedPayments.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setPayments(sortedPayments);
-    }
-  }, []);
-
-  const handleDeleteAllPayments = () => {
-    setPayments([]);
-    localStorage.removeItem('payments');
+  const handleDeleteAllPayments = async () => {
+    if (!firestore || !user || !paymentsQuery) return;
+    const batch = writeBatch(firestore);
+    const querySnapshot = await getDocs(paymentsQuery);
+    querySnapshot.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
     setIsDeleteAlertOpen(false);
   };
 

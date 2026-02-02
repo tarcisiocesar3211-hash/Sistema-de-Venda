@@ -43,12 +43,22 @@ import { cn } from '@/lib/utils';
 import { PlusCircle, Trash2, Pencil, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  useFirebase,
+  useCollection,
+  useMemoFirebase,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
 type Status = (typeof statuses)[number];
 
 type Account = {
   id: string;
+  ownerId: string;
   email: string;
   senha: string;
   tela: string;
@@ -75,10 +85,17 @@ const categories = [
   'Prime Video',
   'Xbox',
 ];
-const initialAccounts: Account[] = [];
 
 export default function EstoquePage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { firestore, user } = useFirebase();
+
+  const accountsQuery = useMemoFirebase(
+    () =>
+      firestore && user ? collection(firestore, 'users', user.uid, 'accounts') : null,
+    [firestore, user]
+  );
+  const { data: accounts } = useCollection<Account>(accountsQuery);
+
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
@@ -107,24 +124,6 @@ export default function EstoquePage() {
   const [editedObservacao, setEditedObservacao] = useState('');
 
   useEffect(() => {
-    try {
-      const storedAccounts = localStorage.getItem('accounts');
-      if (storedAccounts) {
-        const parsedAccounts = JSON.parse(storedAccounts).map((acc: any) => ({
-          ...acc,
-          status: acc.status || 'Estoque',
-        }));
-        setAccounts(parsedAccounts);
-      } else {
-        setAccounts(initialAccounts);
-        localStorage.setItem('accounts', JSON.stringify(initialAccounts));
-      }
-    } catch (error) {
-      setAccounts(initialAccounts);
-    }
-  }, []);
-
-  useEffect(() => {
     if (editingAccount) {
       setEditedEmail(editingAccount.email);
       setEditedSenha(editingAccount.senha);
@@ -138,13 +137,13 @@ export default function EstoquePage() {
   }, [editingAccount]);
 
   const handleAddAccount = () => {
-    if (!newEmail || !newSenha || !newCategoria || !newStatus) {
-      // Basic validation
+    if (!newEmail || !newSenha || !newCategoria || !newStatus || !firestore || !user) {
       return;
     }
 
-    const newAccount: Account = {
-      id: `ACC${Date.now()}`,
+    const newAccountId = `ACC${Date.now()}`;
+    const newAccount: Omit<Account, 'id'> = {
+      ownerId: user.uid,
       email: newEmail,
       senha: newSenha,
       tela: newTela,
@@ -155,11 +154,9 @@ export default function EstoquePage() {
       observacao: newObservacao,
     };
 
-    const updatedAccounts = [...accounts, newAccount];
-    setAccounts(updatedAccounts);
-    localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
+    const accountRef = doc(firestore, 'users', user.uid, 'accounts', newAccountId);
+    setDocumentNonBlocking(accountRef, newAccount, { merge: true });
 
-    // Reset form
     setNewEmail('');
     setNewSenha('');
     setNewTela('');
@@ -172,9 +169,9 @@ export default function EstoquePage() {
   };
 
   const handleRemoveAccount = (id: string) => {
-    const updatedAccounts = accounts.filter((acc) => acc.id !== id);
-    setAccounts(updatedAccounts);
-    localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
+    if (!firestore || !user) return;
+    const accountRef = doc(firestore, 'users', user.uid, 'accounts', id);
+    deleteDocumentNonBlocking(accountRef);
     setDeletionTarget(null);
   };
 
@@ -184,30 +181,27 @@ export default function EstoquePage() {
       !editedEmail ||
       !editedSenha ||
       !editedCategoria ||
-      !editedStatus
+      !editedStatus ||
+      !firestore ||
+      !user
     ) {
       return;
     }
 
-    const updatedAccounts = accounts.map((account) => {
-      if (account.id === editingAccount.id) {
-        return {
-          ...account,
-          email: editedEmail,
-          senha: editedSenha,
-          tela: editedTela,
-          pin: editedPin,
-          remetente: editedRemetente,
-          categoria: editedCategoria,
-          status: editedStatus,
-          observacao: editedObservacao,
-        };
-      }
-      return account;
-    });
+    const updatedAccountData = {
+      email: editedEmail,
+      senha: editedSenha,
+      tela: editedTela,
+      pin: editedPin,
+      remetente: editedRemetente,
+      categoria: editedCategoria,
+      status: editedStatus,
+      observacao: editedObservacao,
+    };
 
-    setAccounts(updatedAccounts);
-    localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
+    const accountRef = doc(firestore, 'users', user.uid, 'accounts', editingAccount.id);
+    setDocumentNonBlocking(accountRef, updatedAccountData, { merge: true });
+
     setIsEditSheetOpen(false);
     setEditingAccount(null);
   };
@@ -224,6 +218,7 @@ export default function EstoquePage() {
   };
 
   const filteredAccounts = useMemo(() => {
+    if (!accounts) return [];
     if (selectedCategory === 'Todos') {
       return accounts;
     }
@@ -370,7 +365,7 @@ export default function EstoquePage() {
       </div>
 
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="Todos">Todos</TabsTrigger>
           {categories.map((cat) => (
             <TabsTrigger key={cat} value={cat}>

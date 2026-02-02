@@ -20,8 +20,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { plans as initialPlans } from '@/lib/data';
 import { PlusCircle, Trash2 } from 'lucide-react';
+import {
+  useFirebase,
+  useCollection,
+  useMemoFirebase,
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 type Plan = {
   id: string;
@@ -30,42 +38,35 @@ type Plan = {
 };
 
 export default function PlansPage() {
-  const [plans, setPlans] = useState<Plan[]>([]);
+  const { firestore } = useFirebase();
+
+  const plansQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'plans') : null),
+    [firestore]
+  );
+  const { data: plans } = useCollection<Plan>(plansQuery);
+
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanPrice, setNewPlanPrice] = useState('');
 
-  useEffect(() => {
-    try {
-      const storedPlans = localStorage.getItem('plans');
-      if (storedPlans) {
-        setPlans(JSON.parse(storedPlans));
-      } else {
-        setPlans(initialPlans);
-        localStorage.setItem('plans', JSON.stringify(initialPlans));
-      }
-    } catch (error) {
-      setPlans(initialPlans);
-    }
-  }, []);
-
   const handleRemovePlan = (id: string) => {
-    const updatedPlans = plans.filter((plan) => plan.id !== id);
-    setPlans(updatedPlans);
-    localStorage.setItem('plans', JSON.stringify(updatedPlans));
+    if (!firestore) return;
+    const planRef = doc(firestore, 'plans', id);
+    deleteDocumentNonBlocking(planRef);
   };
 
   const handleAddPlan = () => {
-    if (!newPlanName || !newPlanPrice) return;
+    if (!newPlanName || !newPlanPrice || !firestore) return;
 
+    const newPlanId = `plan_${Date.now()}`;
     const newPlan = {
-      id: `plan_${Date.now()}`,
       name: newPlanName,
       price: newPlanPrice,
     };
+    
+    const planRef = doc(firestore, 'plans', newPlanId);
+    setDocumentNonBlocking(planRef, newPlan, {merge: true});
 
-    const updatedPlans = [...plans, newPlan];
-    setPlans(updatedPlans);
-    localStorage.setItem('plans', JSON.stringify(updatedPlans));
     setNewPlanName('');
     setNewPlanPrice('');
   };
@@ -134,7 +135,7 @@ export default function PlansPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {plans.map((plan) => (
+            {plans?.map((plan) => (
               <TableRow key={plan.id}>
                 <TableCell className="font-medium">{plan.id}</TableCell>
                 <TableCell>{plan.name}</TableCell>

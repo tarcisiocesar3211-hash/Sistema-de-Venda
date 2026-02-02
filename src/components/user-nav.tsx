@@ -14,11 +14,13 @@ import {
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/firebase';
 
 export function UserNav() {
   const userAvatar = placeholderImages.find(img => img.id === 'user-avatar');
   const { toast } = useToast();
   const router = useRouter();
+  const auth = useAuth();
 
   const handleCopyLink = (link: string, label: string) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -30,7 +32,7 @@ export function UserNav() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
+    auth.signOut();
     router.push('/login');
   };
 
@@ -49,7 +51,7 @@ export function UserNav() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">Visão de Vendas</p>
             <p className="text-xs leading-none text-muted-foreground">
-              m@example.com
+              {auth.currentUser?.email || 'Anônimo'}
             </p>
           </div>
         </DropdownMenuLabel>

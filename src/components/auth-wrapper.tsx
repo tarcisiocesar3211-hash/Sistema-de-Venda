@@ -1,31 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Header from '@/components/header';
+import { useUser } from '@/firebase';
 
 export default function AuthWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isClient, setIsClient] = useState(false);
+  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (isClient) {
-      const auth = localStorage.getItem('isAuthenticated') === 'true';
-      setIsAuthenticated(auth);
-      if (!auth && pathname !== '/login') {
-        router.replace('/login');
-      }
+    if (isUserLoading) {
+      return; // Wait for auth state to be determined
     }
-  }, [pathname, router, isClient]);
+    if (!user && pathname !== '/login') {
+      router.replace('/login');
+    }
+  }, [pathname, router, user, isUserLoading]);
 
-  if (!isClient) {
-    return null; // Avoid server-side rendering of auth-dependent UI
+  if (isUserLoading) {
+    return null; // Or a loading spinner
   }
 
   const isLoginPage = pathname === '/login';
@@ -34,7 +29,7 @@ export default function AuthWrapper({ children }: { children: React.ReactNode })
     return <main className="flex-1">{children}</main>;
   }
 
-  if (isAuthenticated) {
+  if (user) {
     return (
       <div className="relative flex min-h-screen flex-col">
         <Header />

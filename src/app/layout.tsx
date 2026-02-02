@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import AuthWrapper from '@/components/auth-wrapper';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -40,7 +41,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthWrapper>{children}</AuthWrapper>
+          <FirebaseClientProvider>
+            <AuthWrapper>{children}</AuthWrapper>
+          </FirebaseClientProvider>
           <Toaster />
         </ThemeProvider>
       </body>

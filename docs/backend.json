@@ -10,6 +10,10 @@
           "type": "string",
           "description": "Unique identifier for the client."
         },
+        "ownerId": {
+            "type": "string",
+            "description": "The UID of the user who owns this client."
+        },
         "name": {
           "type": "string",
           "description": "The full name of the client."
@@ -23,9 +27,21 @@
           "type": "string",
           "description": "The phone number of the client."
         },
-        "address": {
-          "type": "string",
-          "description": "The physical address of the client."
+        "planId": {
+          "type": "string"
+        },
+        "dueDate": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "tela": {
+            "type": "string"
+        },
+        "pin": {
+            "type": "string"
+        },
+        "suporte": {
+            "type": "boolean"
         },
         "createdAt": {
           "type": "string",
@@ -35,10 +51,48 @@
       },
       "required": [
         "id",
+        "ownerId",
         "name",
         "email",
-        "phone"
+        "phone",
+        "planId",
+        "dueDate"
       ]
+    },
+    "Plan": {
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "Account": {
+      "title": "Account",
+      "type": "object",
+      "description": "Represents a stock account.",
+       "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "email": { "type": "string" },
+        "senha": { "type": "string" },
+        "tela": { "type": "string" },
+        "pin": { "type": "string" },
+        "remetente": { "type": "string" },
+        "categoria": { "type": "string" },
+        "status": { "type": "string", "enum": ["Estoque", "Vendido", "Caida"] },
+        "observacao": { "type": "string" }
+      },
+      "required": ["id", "ownerId", "email", "senha", "categoria", "status"]
     },
     "Payment": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -50,34 +104,31 @@
           "type": "string",
           "description": "Unique identifier for the payment."
         },
+        "ownerId": {
+            "type": "string"
+        },
         "clientId": {
           "type": "string",
           "description": "Reference to Client. (Relationship: Client 1:N Payment)"
         },
+        "clientName": { "type": "string" },
+        "clientEmail": { "type": "string" },
         "amount": {
-          "type": "number",
-          "description": "The amount of the payment."
+          "type": "string"
         },
-        "paymentDate": {
+        "date": {
           "type": "string",
-          "description": "The date of the payment.",
           "format": "date-time"
-        },
-        "paymentMethod": {
-          "type": "string",
-          "description": "The method of payment (e.g., credit card, cash, bank transfer)."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Additional notes about the payment."
         }
       },
       "required": [
         "id",
+        "ownerId",
         "clientId",
+        "clientName",
+        "clientEmail",
         "amount",
-        "paymentDate",
-        "paymentMethod"
+        "date"
       ]
     },
     "Invoice": {
@@ -86,89 +137,39 @@
       "type": "object",
       "description": "Represents an invoice issued to a client.",
       "properties": {
-        "id": {
+        "invoice": {
           "type": "string",
           "description": "Unique identifier for the invoice."
         },
-        "clientId": {
-          "type": "string",
-          "description": "Reference to Client. (Relationship: Client 1:N Invoice)"
+        "ownerId": {
+            "type": "string"
         },
-        "invoiceNumber": {
-          "type": "string",
-          "description": "The unique invoice number."
+        "clientName": {
+          "type": "string"
         },
-        "invoiceDate": {
-          "type": "string",
-          "description": "The date the invoice was issued.",
-          "format": "date-time"
+        "parcela": {
+            "type": "string"
         },
-        "dueDate": {
-          "type": "string",
-          "description": "The date the invoice is due.",
-          "format": "date-time"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount due on the invoice."
+        "amount": {
+          "type": "string"
         },
         "status": {
           "type": "string",
           "description": "The status of the invoice (e.g., sent, paid, overdue)."
         },
-        "notes": {
+        "dueDate": {
           "type": "string",
-          "description": "Additional notes about the invoice."
+          "description": "The date the invoice is due.",
+          "format": "date-time"
         }
       },
       "required": [
-        "id",
-        "clientId",
-        "invoiceNumber",
-        "invoiceDate",
-        "dueDate",
-        "totalAmount",
-        "status"
-      ]
-    },
-    "InvoiceItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "InvoiceItem",
-      "type": "object",
-      "description": "Represents an item within an invoice.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the invoice item."
-        },
-        "invoiceId": {
-          "type": "string",
-          "description": "Reference to Invoice. (Relationship: Invoice 1:N InvoiceItem)"
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the item."
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the item."
-        },
-        "unitPrice": {
-          "type": "number",
-          "description": "Price per unit of the item."
-        },
-        "total": {
-          "type": "number",
-          "description": "Total price for the item (quantity * unitPrice)."
-        }
-      },
-      "required": [
-        "id",
-        "invoiceId",
-        "description",
-        "quantity",
-        "unitPrice",
-        "total"
+        "invoice",
+        "ownerId",
+        "clientName",
+        "amount",
+        "status",
+        "dueDate"
       ]
     }
   },
@@ -181,82 +182,50 @@
   "firestore": {
     "structure": [
       {
-        "path": "/clients/{clientId}",
+        "path": "/users/{userId}/clients/{clientId}",
         "definition": {
           "entityName": "Client",
           "schema": {
             "$ref": "#/backend/entities/Client"
-          },
-          "description": "Stores client data. Each document is uniquely identified by its clientId.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            }
-          ]
+          }
+        }
+      },
+       {
+        "path": "/users/{userId}/accounts/{accountId}",
+        "definition": {
+          "entityName": "Account",
+          "schema": {
+            "$ref": "#/backend/entities/Account"
+          }
         }
       },
       {
-        "path": "/clients/{clientId}/payments/{paymentId}",
+        "path": "/users/{userId}/payments/{paymentId}",
         "definition": {
           "entityName": "Payment",
           "schema": {
             "$ref": "#/backend/entities/Payment"
-          },
-          "description": "Stores payments associated with a specific client. Enables easy retrieval of all payments for a given client.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            },
-            {
-              "name": "paymentId",
-              "description": "Unique identifier for the payment."
-            }
-          ]
+          }
         }
       },
       {
-        "path": "/clients/{clientId}/invoices/{invoiceId}",
+        "path": "/users/{userId}/invoices/{invoiceId}",
         "definition": {
           "entityName": "Invoice",
           "schema": {
             "$ref": "#/backend/entities/Invoice"
-          },
-          "description": "Stores invoices for a specific client. Enables efficient retrieval of a client's invoice history.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            },
-            {
-              "name": "invoiceId",
-              "description": "Unique identifier for the invoice."
-            }
-          ]
+          }
         }
       },
       {
-        "path": "/invoices/{invoiceId}/items/{itemId}",
-        "definition": {
-          "entityName": "InvoiceItem",
-          "schema": {
-            "$ref": "#/backend/entities/InvoiceItem"
-          },
-          "description": "Stores individual items associated with an invoice. Supports detailed invoice breakdowns.",
-          "params": [
-            {
-              "name": "invoiceId",
-              "description": "Unique identifier for the invoice."
-            },
-            {
-              "name": "itemId",
-              "description": "Unique identifier for the invoice item."
-            }
-          ]
-        }
+          "path": "/plans/{planId}",
+          "definition": {
+              "entityName": "Plan",
+              "schema": {
+                  "$ref": "#/backend/entities/Plan"
+              }
+          }
       }
-    ],
-    "reasoning": "Based on the provided entities (Client, Payment, Invoice, InvoiceItem) and the application requirements, a straightforward relational structure is recommended. This structure prioritizes simplicity for querying and management. Authorization Independence is not enforced because the user explicitly requested all security rules be removed.\n\n*   `/clients/{clientId}`: Stores client data. Each client document is uniquely identified by its `clientId`. This supports direct access to client information.\n*   `/clients/{clientId}/payments/{paymentId}`: Stores payments associated with a specific client. This subcollection allows easy retrieval of all payments for a given client.\n*   `/clients/{clientId}/invoices/{invoiceId}`: Stores invoices for a specific client, enabling efficient retrieval of a client's invoice history.\n*   `/invoices/{invoiceId}/items/{itemId}`: Stores individual items associated with an invoice. This structure supports detailed invoice breakdowns."
+    ]
   }
 }
