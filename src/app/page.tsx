@@ -11,7 +11,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { clients as clientsData, invoices as initialInvoices } from '@/lib/data';
+import {
+  clients as clientsData,
+  invoices as initialInvoices,
+  plans as initialPlans,
+} from '@/lib/data';
 import {
   getMonth,
   getYear,
@@ -39,6 +43,12 @@ type Payment = {
   date: string;
 };
 
+type Plan = {
+  id: string;
+  name: string;
+  price: string;
+};
+
 type Client = {
   id: string;
   name: string;
@@ -62,6 +72,8 @@ type Invoice = {
 type OpenDueClient = Client & {
   statusText: string;
   statusType: 'Vencido' | 'Vence Hoje' | 'Pago';
+  planName: string;
+  planPrice: string;
 };
 
 export default function DashboardPage() {
@@ -203,6 +215,11 @@ export default function DashboardPage() {
         : clientsData;
       setTotalClients(clients.length);
 
+      const storedPlans = localStorage.getItem('plans');
+      const plans: Plan[] = storedPlans
+        ? JSON.parse(storedPlans)
+        : initialPlans;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -222,10 +239,13 @@ export default function DashboardPage() {
         })
         .map((client) => {
           const status = getStatus(client.dueDate);
+          const plan = plans.find((p) => p.id === client.planId);
           return {
             ...client,
             statusText: status.text,
             statusType: status.type,
+            planName: plan ? plan.name : 'N/A',
+            planPrice: plan ? plan.price : 'N/A',
           };
         })
         .sort(
@@ -237,6 +257,12 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to load clients from localStorage', error);
       setTotalClients(clientsData.length);
+
+      const storedPlans = localStorage.getItem('plans');
+      const plans: Plan[] = storedPlans
+        ? JSON.parse(storedPlans)
+        : initialPlans;
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const dueToday = clientsData.filter(
@@ -255,10 +281,13 @@ export default function DashboardPage() {
         })
         .map((client) => {
           const status = getStatus(client.dueDate);
+          const plan = plans.find((p) => p.id === client.planId);
           return {
             ...client,
             statusText: status.text,
             statusType: status.type,
+            planName: plan ? plan.name : 'N/A',
+            planPrice: plan ? plan.price : 'N/A',
           };
         })
         .sort(
@@ -386,6 +415,12 @@ export default function DashboardPage() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {client.email}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {client.phone}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {client.planName} - {client.planPrice}
                         </p>
                       </div>
                       <div className="ml-auto font-medium">
