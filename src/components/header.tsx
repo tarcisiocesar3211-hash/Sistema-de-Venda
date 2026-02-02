@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import { MainNav } from '@/components/main-nav';
 import { UserNav } from '@/components/user-nav';
 import { GanttChart } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 export default function Header() {
   return (
@@ -18,7 +20,8 @@ export default function Header() {
           <div className="w-full flex-1 md:w-auto md:flex-none">
             <MainNav />
           </div>
-          <nav className="flex items-center">
+          <nav className="flex items-center space-x-2">
+            <ThemeToggle />
             <UserNav />
           </nav>
         </div>
@@ -26,6 +29,3 @@ export default function Header() {
     </header>
   );
 }
-
-// Added Link for compilation, should be from next/link
-import Link from 'next/link';
