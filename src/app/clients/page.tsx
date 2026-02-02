@@ -44,6 +44,7 @@ import {
   RefreshCcw,
   Copy,
   ArrowUpDown,
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
@@ -96,6 +97,7 @@ export default function ClientsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -354,7 +356,15 @@ export default function ClientsPage() {
   };
 
   const sortedClients = useMemo(() => {
-    const clientsWithPlanDetails = clients.map((client) => {
+    const filteredClients = searchQuery
+      ? clients.filter(
+          (client) =>
+            client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            client.email.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : clients;
+
+    const clientsWithPlanDetails = filteredClients.map((client) => {
       const plan = plans.find((p) => p.id === client.planId);
       const statusInfo = getStatus(client.dueDate);
 
@@ -394,7 +404,7 @@ export default function ClientsPage() {
     }
 
     return sortableClients;
-  }, [clients, plans, sortConfig]);
+  }, [clients, plans, sortConfig, searchQuery]);
 
   const handleRenewSelected = () => {
     if (selectedClients.length === 0) return;
@@ -462,12 +472,39 @@ export default function ClientsPage() {
     });
   };
 
+  const allVisibleSelected = useMemo(() => {
+    if (sortedClients.length === 0) return false;
+    return sortedClients.every((client) => selectedClients.includes(client.id));
+  }, [sortedClients, selectedClients]);
+
+  const handleSelectAllVisible = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      const visibleIds = sortedClients.map((client) => client.id);
+      setSelectedClients((prev) => [...new Set([...prev, ...visibleIds])]);
+    } else {
+      const visibleIds = sortedClients.map((client) => client.id);
+      setSelectedClients((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    }
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight font-headline">
           Clientes
         </h2>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar por nome ou e-mail..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
         <div className="flex items-center space-x-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -631,134 +668,6 @@ export default function ClientsPage() {
               </div>
             </SheetContent>
           </Sheet>
-          {/* Edit Client Sheet */}
-          <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Editar cliente</SheetTitle>
-                <SheetDescription>
-                  Atualize as informações do cliente abaixo.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-name" className="text-right">
-                    Nome
-                  </Label>
-                  <Input
-                    id="edit-name"
-                    className="col-span-3"
-                    value={editedClientName}
-                    onChange={(e) => setEditedClientName(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-email" className="text-right">
-                    E-mail
-                  </Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    className="col-span-3"
-                    value={editedClientEmail}
-                    onChange={(e) => setEditedClientEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-phone" className="text-right">
-                    Telefone
-                  </Label>
-                  <Input
-                    id="edit-phone"
-                    className="col-span-3"
-                    value={editedClientPhone}
-                    onChange={(e) => setEditedClientPhone(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-tela" className="text-right">
-                    Tela
-                  </Label>
-                  <Input
-                    id="edit-tela"
-                    className="col-span-3"
-                    value={editedClientTela}
-                    onChange={(e) => setEditedClientTela(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-pin" className="text-right">
-                    PIN
-                  </Label>
-                  <Input
-                    id="edit-pin"
-                    className="col-span-3"
-                    value={editedClientPin}
-                    onChange={(e) => setEditedClientPin(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-plan" className="text-right">
-                    Plano
-                  </Label>
-                  <Select
-                    value={editedClientPlanId}
-                    onValueChange={setEditedClientPlanId}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione um plano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {plans.map((plan) => (
-                        <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Vencimento</Label>
-                  <RadioGroup
-                    value={editedDueDateType}
-                    onValueChange={(value) =>
-                      setEditedDueDateType(value as 'automatico' | 'manual')
-                    }
-                    className="col-span-3 flex items-center space-x-4"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="automatico" id="edit-automatico" />
-                      <Label htmlFor="edit-automatico">
-                        Automático (30 dias)
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="edit-manual" />
-                      <Label htmlFor="edit-manual">Manual</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {editedDueDateType === 'manual' && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-dueDate" className="text-right">
-                      Data
-                    </Label>
-                    <Input
-                      id="edit-dueDate"
-                      type="date"
-                      className="col-span-3"
-                      value={editedClientDueDate}
-                      onChange={(e) => setEditedClientDueDate(e.target.value)}
-                    />
-                  </div>
-                )}
-                <Button onClick={handleUpdateClient} className="w-full">
-                  Salvar alterações
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
       <div className="rounded-md border">
@@ -767,17 +676,8 @@ export default function ClientsPage() {
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={
-                    selectedClients.length === clients.length &&
-                    clients.length > 0
-                  }
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedClients(clients.map((c) => c.id));
-                    } else {
-                      setSelectedClients([]);
-                    }
-                  }}
+                  checked={allVisibleSelected}
+                  onCheckedChange={handleSelectAllVisible}
                   aria-label="Selecionar todos"
                 />
               </TableHead>
@@ -895,6 +795,134 @@ export default function ClientsPage() {
           </TableBody>
         </Table>
       </div>
+      {/* Edit Client Sheet */}
+      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Editar cliente</SheetTitle>
+            <SheetDescription>
+              Atualize as informações do cliente abaixo.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Nome
+              </Label>
+              <Input
+                id="edit-name"
+                className="col-span-3"
+                value={editedClientName}
+                onChange={(e) => setEditedClientName(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-email" className="text-right">
+                E-mail
+              </Label>
+              <Input
+                id="edit-email"
+                type="email"
+                className="col-span-3"
+                value={editedClientEmail}
+                onChange={(e) => setEditedClientEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-phone" className="text-right">
+                Telefone
+              </Label>
+              <Input
+                id="edit-phone"
+                className="col-span-3"
+                value={editedClientPhone}
+                onChange={(e) => setEditedClientPhone(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-tela" className="text-right">
+                Tela
+              </Label>
+              <Input
+                id="edit-tela"
+                className="col-span-3"
+                value={editedClientTela}
+                onChange={(e) => setEditedClientTela(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-pin" className="text-right">
+                PIN
+              </Label>
+              <Input
+                id="edit-pin"
+                className="col-span-3"
+                value={editedClientPin}
+                onChange={(e) => setEditedClientPin(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-plan" className="text-right">
+                Plano
+              </Label>
+              <Select
+                value={editedClientPlanId}
+                onValueChange={setEditedClientPlanId}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione um plano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Vencimento</Label>
+              <RadioGroup
+                value={editedDueDateType}
+                onValueChange={(value) =>
+                  setEditedDueDateType(value as 'automatico' | 'manual')
+                }
+                className="col-span-3 flex items-center space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="automatico" id="edit-automatico" />
+                  <Label htmlFor="edit-automatico">
+                    Automático (30 dias)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="manual" id="edit-manual" />
+                  <Label htmlFor="edit-manual">Manual</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {editedDueDateType === 'manual' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-dueDate" className="text-right">
+                  Data
+                </Label>
+                <Input
+                  id="edit-dueDate"
+                  type="date"
+                  className="col-span-3"
+                  value={editedClientDueDate}
+                  onChange={(e) => setEditedClientDueDate(e.target.value)}
+                />
+              </div>
+            )}
+            <Button onClick={handleUpdateClient} className="w-full">
+              Salvar alterações
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
       <AlertDialog
         open={deletionTarget !== null}
         onOpenChange={(open) => {
