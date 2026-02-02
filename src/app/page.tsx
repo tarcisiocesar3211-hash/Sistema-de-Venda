@@ -109,6 +109,7 @@ export default function DashboardPage() {
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [totalClients, setTotalClients] = useState(0);
+  const [clientsValue, setClientsValue] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueChange, setRevenueChange] = useState(0);
   const [salesToday, setSalesToday] = useState(0);
@@ -217,9 +218,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const clients: Client[] = clientsData ?? [];
+    const plans: Plan[] = initialPlans ?? [];
+
     setTotalClients(clients.length);
 
-    const plans: Plan[] = initialPlans ?? [];
+    let totalValue = 0;
+    if (clients.length > 0 && plans.length > 0) {
+      clients.forEach(client => {
+        const plan = plans.find(p => p.id === client.planId);
+        if (plan && plan.price) {
+          const amountString = plan.price.replace(/[^\d,]/g, '').replace(',', '.');
+          const amount = parseFloat(amountString);
+          if (!isNaN(amount)) {
+            totalValue += amount;
+          }
+        }
+      });
+    }
+    setClientsValue(totalValue);
 
     if (paymentsData) {
       const payments: Payment[] = paymentsData;
@@ -322,7 +338,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{totalClients}</div>
               <p className="text-xs text-muted-foreground">
-                Total de clientes registrados
+                Valor total: R$ {clientsValue.toFixed(2).replace('.', ',')}
               </p>
             </CardContent>
           </Card>
