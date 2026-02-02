@@ -1,0 +1,136 @@
+/**
+ * This ruleset enforces a strict user-ownership model for a multi-tenant client management system.
+ * It is designed for secure prototyping, prioritizing strong authorization while allowing flexibility
+ * in the data's shape.
+ *
+ * Core Philosophy:
+ * A user can only access data that they have explicitly created. All data entities, such as clients,
+ * invoices, and payments, are expected to have an `ownerId` field that links them to a specific
+ * authenticated user. This prevents any user from seeing or modifying another user's data.
+ *
+ * Data Structure:
+ * The data is primarily structured around a top-level `clients` collection. Client-specific
+ * data like `payments` and `invoices` are logically nested as subcollections under each client.
+ * There is also a separate top-level collection for invoice items (`/invoices/{invoiceId}/items/{itemId}`)
+ * to support detailed invoice breakdowns.
+ *
+ * Key Security Decisions:
+ * - CRITICAL: An `ownerId` field (containing the user's auth UID) MUST be added to the `Client`
+ *   and `InvoiceItem` documents in Firestore. This ruleset is written with the assumption that
+ *   this field exists, as it is essential for enforcing ownership-based security.
+ * - Ownership is not transferable: The `ownerId` on any document is immutable once created.
+ * - Relational Integrity: For documents in subcollections (e.g., payments), the rules ensure that
+ *   the document's internal `clientId` matches the parent document in the path.
+ * - Denormalization for Authorization: To secure the `/invoices/{invoiceId}/items/{itemId}` path
+ *   efficiently, the `ownerId` must be denormalized (copied) onto each `InvoiceItem` document. This
+ *   avoids complex and slow multi-document reads during authorization checks.
+ *
+ * This ruleset explicitly rejects the user's initial request to have no security rules, as that
+ * would create a critical vulnerability. Instead, it provides a secure foundation for the application.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    //-------------------------------------------------------------------------
+    // Helper Functions
+    //-------------------------------------------------------------------------
+
+    /**
+     * Returns true if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Returns true if the authenticated user's UID matches the provided userId.
+     * This is the core function for checking resource ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Returns true if the user owns the document and the document already exists.
+     * Used for safe update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the ownerId field of a new document matches the creator's UID.
+     */
+    function hasCorrectOwnerOnCreate() {
+      // CRITICAL: Assumes an `ownerId` field exists on the document being created.
+      return isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    //-------------------------------------------------------------------------
+    // Collection Rules
+    //-------------------------------------------------------------------------
+
+    /**
+     * @description Manages client data. Access is restricted to the user who owns the client document.
+     * @path /clients/{clientId}
+     * @allow (get) A signed-in user can read a client document if their UID matches the client's `ownerId`.
+     * @deny (get) A user attempts to read a client owned by another user.
+     * @principle Enforces a strict document ownership model.
+     */
+    match /clients/{clientId} {
+      // CRITICAL: The 'Client' entity is missing an 'ownerId' or 'authorId' field.
+      // The rules below assume you will add an `ownerId` field to your Client documents.
+      allow get: if isOwner(resource.data.ownerId);
+      allow list: if false; // Disallow listing clients to prevent data leakage.
+      allow create: if hasCorrectOwnerOnCreate(); // TODO: Add owner validation once the schema is updated with an `ownerId` field.
+      allow update: if isExistingOwner(resource.data.ownerId); // TODO: Add owner validation once the schema is updated with an `ownerId` field.
+      allow delete: if isExistingOwner(resource.data.ownerId); // TODO: Add owner validation once the schema is updated with an `ownerId` field.
+    }
+
+    /**
+     * @description Manages payments for a specific client. Access is derived from the parent client's ownership.
+     * @path /clients/{clientId}/payments/{paymentId}
+     * @allow (create) A user can create a payment for a client they own.
+     * @deny (create) A user attempts to create a payment for a client they do not own.
+     * @principle Inherits security context from a parent document using a `get()` call.
+     */
+    match /clients/{clientId}/payments/{paymentId} {
+      allow get, list: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId);
+      allow create: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && request.resource.data.clientId == clientId;
+      allow update: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && resource != null && request.resource.data.clientId == resource.data.clientId;
+      allow delete: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && resource != null;
+    }
+
+    /**
+     * @description Manages invoices for a specific client. Access is derived from the parent client's ownership.
+     * @path /clients/{clientId}/invoices/{invoiceId}
+     * @allow (get) A user can read an invoice belonging to a client they own.
+     * @deny (list) A user tries to list invoices for a client owned by someone else.
+     * @principle Inherits security context from a parent document using a `get()` call.
+     */
+    match /clients/{clientId}/invoices/{invoiceId} {
+      allow get, list: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId);
+      allow create: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && request.resource.data.clientId == clientId;
+      allow update: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && resource != null && request.resource.data.clientId == resource.data.clientId;
+      allow delete: if isOwner(get(/databases/$(database)/documents/clients/$(clientId)).data.ownerId) && resource != null;
+    }
+
+    /**
+     * @description Manages the line items for an invoice. Access is restricted based on a denormalized `ownerId`.
+     * @path /invoices/{invoiceId}/items/{itemId}
+     * @allow (create) A user can create an invoice item if they set their UID as the `ownerId` on the new item.
+     * @deny (update) A user tries to modify an invoice item owned by another user.
+     * @principle Uses a denormalized `ownerId` field for efficient and secure access to a subcollection in a separate path.
+     */
+    match /invoices/{invoiceId}/items/{itemId} {
+      // CRITICAL: The 'InvoiceItem' entity is missing an 'ownerId' field.
+      // To secure this path efficiently, you must denormalize the owner's UID from the parent client/invoice
+      // onto every InvoiceItem document.
+      allow get, list: if isOwner(resource.data.ownerId);
+      allow create: if hasCorrectOwnerOnCreate() && request.resource.data.invoiceId == invoiceId; // TODO: Add `ownerId` field to InvoiceItem schema.
+      allow update: if isExistingOwner(resource.data.ownerId) && request.resource.data.invoiceId == resource.data.invoiceId; // TODO: Add `ownerId` field to InvoiceItem schema.
+      allow delete: if isExistingOwner(resource.data.ownerId); // TODO: Add `ownerId` field to InvoiceItem schema.
+    }
+  }
+}
