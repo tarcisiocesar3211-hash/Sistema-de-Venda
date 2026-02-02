@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { MainNav } from '@/components/main-nav';
 import { UserNav } from '@/components/user-nav';
-import { GanttChart } from 'lucide-react';
+import Image from 'next/image';
 import { ThemeToggle } from './theme-toggle';
 
 export default function Header() {
@@ -10,7 +10,7 @@ export default function Header() {
       <div className="container flex h-14 items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <GanttChart className="h-6 w-6 text-primary" />
+            <Image src="https://cdn.ereemby.com/attachments/17535888867771941imagem.png" alt="Visão de Vendas Logo" width={24} height={24} />
             <span className="hidden font-bold sm:inline-block font-headline">
               Visão de Vendas
             </span>
