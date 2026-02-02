@@ -38,7 +38,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { PlusCircle, Trash2, Pencil } from 'lucide-react';
+
+const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
+type Status = (typeof statuses)[number];
 
 type Account = {
   id: string;
@@ -48,6 +53,7 @@ type Account = {
   pin: string;
   remetente: string;
   categoria: string;
+  status: Status;
 };
 
 const categories = ['Netflix', 'Disney', 'HBO', 'Spotify', 'Globoplay'];
@@ -66,6 +72,7 @@ export default function EstoquePage() {
   const [newPin, setNewPin] = useState('');
   const [newRemetente, setNewRemetente] = useState('');
   const [newCategoria, setNewCategoria] = useState('');
+  const [newStatus, setNewStatus] = useState<Status | ''>('');
 
   // State for editing an account
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -76,12 +83,17 @@ export default function EstoquePage() {
   const [editedPin, setEditedPin] = useState('');
   const [editedRemetente, setEditedRemetente] = useState('');
   const [editedCategoria, setEditedCategoria] = useState('');
+  const [editedStatus, setEditedStatus] = useState<Status>('Estoque');
 
   useEffect(() => {
     try {
       const storedAccounts = localStorage.getItem('accounts');
       if (storedAccounts) {
-        setAccounts(JSON.parse(storedAccounts));
+        const parsedAccounts = JSON.parse(storedAccounts).map((acc: any) => ({
+          ...acc,
+          status: acc.status || 'Estoque',
+        }));
+        setAccounts(parsedAccounts);
       } else {
         setAccounts(initialAccounts);
         localStorage.setItem('accounts', JSON.stringify(initialAccounts));
@@ -99,11 +111,12 @@ export default function EstoquePage() {
       setEditedPin(editingAccount.pin);
       setEditedRemetente(editingAccount.remetente);
       setEditedCategoria(editingAccount.categoria);
+      setEditedStatus(editingAccount.status);
     }
   }, [editingAccount]);
 
   const handleAddAccount = () => {
-    if (!newEmail || !newSenha || !newCategoria) {
+    if (!newEmail || !newSenha || !newCategoria || !newStatus) {
       // Basic validation
       return;
     }
@@ -116,6 +129,7 @@ export default function EstoquePage() {
       pin: newPin,
       remetente: newRemetente,
       categoria: newCategoria,
+      status: newStatus,
     };
 
     const updatedAccounts = [...accounts, newAccount];
@@ -129,6 +143,7 @@ export default function EstoquePage() {
     setNewPin('');
     setNewRemetente('');
     setNewCategoria('');
+    setNewStatus('');
     setIsAddSheetOpen(false);
   };
 
@@ -140,7 +155,13 @@ export default function EstoquePage() {
   };
 
   const handleUpdateAccount = () => {
-    if (!editingAccount || !editedEmail || !editedSenha || !editedCategoria) {
+    if (
+      !editingAccount ||
+      !editedEmail ||
+      !editedSenha ||
+      !editedCategoria ||
+      !editedStatus
+    ) {
       return;
     }
 
@@ -154,6 +175,7 @@ export default function EstoquePage() {
           pin: editedPin,
           remetente: editedRemetente,
           categoria: editedCategoria,
+          status: editedStatus,
         };
       }
       return account;
@@ -205,6 +227,26 @@ export default function EstoquePage() {
                       {categories.map((cat) => (
                         <SelectItem key={cat} value={cat}>
                           {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">
+                    Status
+                  </Label>
+                  <Select
+                    value={newStatus}
+                    onValueChange={(value) => setNewStatus(value as Status)}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Selecione um status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statuses.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -300,6 +342,7 @@ export default function EstoquePage() {
               <TableHead>PIN</TableHead>
               <TableHead>Remetente</TableHead>
               <TableHead>Categoria</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -313,6 +356,28 @@ export default function EstoquePage() {
                   <TableCell>{account.pin}</TableCell>
                   <TableCell>{account.remetente}</TableCell>
                   <TableCell>{account.categoria}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        account.status === 'Vendido'
+                          ? 'default'
+                          : account.status === 'Caida'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                      className={cn(
+                        account.status === 'Vendido' &&
+                          'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
+                        account.status === 'Estoque' &&
+                          'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                        account.status === 'Caida' &&
+                          'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+                        'border-none'
+                      )}
+                    >
+                      {account.status}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -336,7 +401,7 @@ export default function EstoquePage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   Nenhuma conta encontrada.
                 </TableCell>
               </TableRow>
@@ -400,6 +465,26 @@ export default function EstoquePage() {
                   {categories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-status" className="text-right">
+                Status
+              </Label>
+              <Select
+                value={editedStatus}
+                onValueChange={(value) => setEditedStatus(value as Status)}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
                     </SelectItem>
                   ))}
                 </SelectContent>
