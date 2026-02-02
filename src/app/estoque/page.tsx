@@ -38,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil } from 'lucide-react';
 
 type Account = {
   id: string;
@@ -59,13 +59,23 @@ export default function EstoquePage() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
 
-  // Form states
+  // Form states for adding
   const [newEmail, setNewEmail] = useState('');
   const [newSenha, setNewSenha] = useState('');
   const [newTela, setNewTela] = useState('');
   const [newPin, setNewPin] = useState('');
   const [newRemetente, setNewRemetente] = useState('');
   const [newCategoria, setNewCategoria] = useState('');
+
+  // State for editing an account
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const [editedEmail, setEditedEmail] = useState('');
+  const [editedSenha, setEditedSenha] = useState('');
+  const [editedTela, setEditedTela] = useState('');
+  const [editedPin, setEditedPin] = useState('');
+  const [editedRemetente, setEditedRemetente] = useState('');
+  const [editedCategoria, setEditedCategoria] = useState('');
 
   useEffect(() => {
     try {
@@ -80,6 +90,17 @@ export default function EstoquePage() {
       setAccounts(initialAccounts);
     }
   }, []);
+
+  useEffect(() => {
+    if (editingAccount) {
+      setEditedEmail(editingAccount.email);
+      setEditedSenha(editingAccount.senha);
+      setEditedTela(editingAccount.tela);
+      setEditedPin(editingAccount.pin);
+      setEditedRemetente(editingAccount.remetente);
+      setEditedCategoria(editingAccount.categoria);
+    }
+  }, [editingAccount]);
 
   const handleAddAccount = () => {
     if (!newEmail || !newSenha || !newCategoria) {
@@ -116,6 +137,32 @@ export default function EstoquePage() {
     setAccounts(updatedAccounts);
     localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
     setDeletionTarget(null);
+  };
+
+  const handleUpdateAccount = () => {
+    if (!editingAccount || !editedEmail || !editedSenha || !editedCategoria) {
+      return;
+    }
+
+    const updatedAccounts = accounts.map((account) => {
+      if (account.id === editingAccount.id) {
+        return {
+          ...account,
+          email: editedEmail,
+          senha: editedSenha,
+          tela: editedTela,
+          pin: editedPin,
+          remetente: editedRemetente,
+          categoria: editedCategoria,
+        };
+      }
+      return account;
+    });
+
+    setAccounts(updatedAccounts);
+    localStorage.setItem('accounts', JSON.stringify(updatedAccounts));
+    setIsEditSheetOpen(false);
+    setEditingAccount(null);
   };
 
   const filteredAccounts = useMemo(() => {
@@ -270,6 +317,16 @@ export default function EstoquePage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => {
+                        setEditingAccount(account);
+                        setIsEditSheetOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => setDeletionTarget(account.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -319,6 +376,101 @@ export default function EstoquePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Sheet open={isEditSheetOpen} onOpenChange={setIsEditSheetOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Editar conta</SheetTitle>
+            <SheetDescription>
+              Atualize os dados da conta.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-categoria" className="text-right">
+                Categoria
+              </Label>
+              <Select
+                value={editedCategoria}
+                onValueChange={setEditedCategoria}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-email" className="text-right">
+                E-mail
+              </Label>
+              <Input
+                id="edit-email"
+                placeholder="email@exemplo.com"
+                className="col-span-3"
+                value={editedEmail}
+                onChange={(e) => setEditedEmail(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-senha" className="text-right">
+                Senha
+              </Label>
+              <Input
+                id="edit-senha"
+                placeholder="Sua senha"
+                className="col-span-3"
+                value={editedSenha}
+                onChange={(e) => setEditedSenha(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-tela" className="text-right">
+                Tela
+              </Label>
+              <Input
+                id="edit-tela"
+                placeholder="Ex: Perfil 1"
+                className="col-span-3"
+                value={editedTela}
+                onChange={(e) => setEditedTela(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-pin" className="text-right">
+                PIN
+              </Label>
+              <Input
+                id="edit-pin"
+                placeholder="Ex: 1234"
+                className="col-span-3"
+                value={editedPin}
+                onChange={(e) => setEditedPin(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-remetente" className="text-right">
+                Remetente
+              </Label>
+              <Input
+                id="edit-remetente"
+                placeholder="Nome do remetente"
+                className="col-span-3"
+                value={editedRemetente}
+                onChange={(e) => setEditedRemetente(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleUpdateAccount} className="w-full">
+              Salvar alterações
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
