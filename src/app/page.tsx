@@ -395,21 +395,7 @@ export default function DashboardPage() {
                 {openDues.length > 0 ? (
                   openDues.map((client) => (
                     <div className="flex items-center" key={client.id}>
-                      <Avatar className="h-9 w-9">
-                        {userAvatar && (
-                          <AvatarImage
-                            src={userAvatar.imageUrl}
-                            alt="Avatar"
-                            data-ai-hint={userAvatar.imageHint}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {client.name
-                            ? client.name.substring(0, 2).toUpperCase()
-                            : ''}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="ml-4 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                         <p className="text-sm font-medium leading-none">
                           {client.name}
                         </p>
