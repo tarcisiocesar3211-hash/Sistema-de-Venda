@@ -13,10 +13,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export function UserNav() {
   const userAvatar = placeholderImages.find(img => img.id === 'user-avatar');
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleCopyLink = (link: string, label: string) => {
     navigator.clipboard.writeText(link).then(() => {
@@ -25,6 +27,11 @@ export function UserNav() {
         description: `${label} copiado para a área de transferência.`,
       });
     });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    router.push('/login');
   };
 
   return (
@@ -61,6 +68,10 @@ export function UserNav() {
             IPTV
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          Sair
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
