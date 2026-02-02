@@ -13,7 +13,7 @@ import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import SalesChart from '@/components/sales-chart';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { clients as clientsData } from '@/lib/data';
-import { getMonth, getYear, parseISO } from 'date-fns';
+import { getMonth, getYear, parseISO, isToday, isYesterday } from 'date-fns';
 
 type Sale = {
   id: string;
@@ -36,6 +36,8 @@ export default function DashboardPage() {
   const [totalClients, setTotalClients] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueChange, setRevenueChange] = useState(0);
+  const [salesToday, setSalesToday] = useState(0);
+  const [salesChange, setSalesChange] = useState(0);
 
   useEffect(() => {
     try {
@@ -63,6 +65,8 @@ export default function DashboardPage() {
         let currentMonthRevenue = 0;
         let lastMonthRevenue = 0;
         let total = 0;
+        let todaySalesValue = 0;
+        let yesterdaySalesValue = 0;
 
         payments.forEach((p) => {
           const paymentDate = parseISO(p.date);
@@ -82,6 +86,12 @@ export default function DashboardPage() {
             ) {
               lastMonthRevenue += amount;
             }
+
+            if (isToday(paymentDate)) {
+              todaySalesValue += amount;
+            } else if (isYesterday(paymentDate)) {
+              yesterdaySalesValue += amount;
+            }
           }
         });
 
@@ -96,10 +106,26 @@ export default function DashboardPage() {
         } else {
           setRevenueChange(0);
         }
+
+        setSalesToday(todaySalesValue);
+        if (yesterdaySalesValue > 0) {
+          const change =
+            ((todaySalesValue - yesterdaySalesValue) / yesterdaySalesValue) *
+            100;
+          setSalesChange(change);
+        } else if (todaySalesValue > 0) {
+          setSalesChange(100);
+        } else {
+          setSalesChange(0);
+        }
       }
     } catch (error) {
-      console.error('Failed to load recent sales from localStorage', error);
+      console.error('Failed to load data from localStorage', error);
       setRecentSales([]);
+      setTotalRevenue(0);
+      setRevenueChange(0);
+      setSalesToday(0);
+      setSalesChange(0);
     }
 
     try {
@@ -154,13 +180,16 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vendas</CardTitle>
+              <CardTitle className="text-sm font-medium">Vendas (Hoje)</CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+12,234</div>
+              <div className="text-2xl font-bold">
+                R$ {salesToday.toFixed(2).replace('.', ',')}
+              </div>
               <p className="text-xs text-muted-foreground">
-                +19% do mês passado
+                {salesChange >= 0 ? '+' : ''}
+                {salesChange.toFixed(1).replace('.', ',')}% de ontem
               </p>
             </CardContent>
           </Card>
