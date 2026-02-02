@@ -522,38 +522,51 @@ export default function DashboardPage() {
               <CardDescription>Faturas aguardando pagamento.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-8">
+              <div className="space-y-4">
                 {pendingInvoices.length > 0 ? (
-                  pendingInvoices.map((invoice) => (
-                    <div className="flex items-center" key={invoice.invoice}>
-                      <Avatar className="h-9 w-9">
-                        {userAvatar && (
-                          <AvatarImage
-                            src={userAvatar.imageUrl}
-                            alt="Avatar"
-                            data-ai-hint={userAvatar.imageHint}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {invoice.clientName
-                            ? invoice.clientName.charAt(0)
-                            : ''}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="ml-4 space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {invoice.clientName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Vencimento:{' '}
-                          {format(parseISO(invoice.dueDate), 'dd/MM/yyyy')}
-                        </p>
-                      </div>
-                      <div className="ml-auto font-medium">
-                        {invoice.amount}
+                  <>
+                    <div className="grid grid-cols-12 items-center gap-4 text-xs font-medium text-muted-foreground border-b pb-2">
+                      <div className="col-span-3">Produto</div>
+                      <div className="col-span-2">Parcela</div>
+                      <div className="col-span-2">Valor</div>
+                      <div className="col-span-2">Status</div>
+                      <div className="col-span-3 text-right">
+                        Data de Pagamento
                       </div>
                     </div>
-                  ))
+                    <div className="space-y-4">
+                      {pendingInvoices.map((invoice) => (
+                        <div
+                          className="grid grid-cols-12 items-center gap-4"
+                          key={invoice.invoice}
+                        >
+                          <p className="col-span-3 text-sm font-medium leading-none truncate">
+                            {invoice.clientName}
+                          </p>
+                          <p className="col-span-2 text-sm text-muted-foreground truncate">
+                            {invoice.parcela || 'N/A'}
+                          </p>
+                          <p className="col-span-2 text-sm text-muted-foreground truncate">
+                            {invoice.amount}
+                          </p>
+                          <div className="col-span-2 font-medium">
+                            <Badge
+                              variant={'secondary'}
+                              className={cn(
+                                'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                                'border-none'
+                              )}
+                            >
+                              {invoice.status}
+                            </Badge>
+                          </div>
+                          <p className="col-span-3 text-sm text-muted-foreground truncate text-right">
+                            {format(parseISO(invoice.dueDate), 'dd/MM/yyyy')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Nenhuma fatura pendente.
