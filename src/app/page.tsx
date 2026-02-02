@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -8,11 +11,48 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import SalesChart from '@/components/sales-chart';
-import { recentSales } from '@/lib/data';
 import { placeholderImages } from '@/lib/placeholder-images';
 
+type Sale = {
+  id: string;
+  name: string;
+  email: string;
+  amount: string;
+};
+
+type Payment = {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  amount: string;
+  date: string;
+};
+
 export default function DashboardPage() {
-  const userAvatar = placeholderImages.find(img => img.id === 'user-avatar');
+  const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
+  const [recentSales, setRecentSales] = useState<Sale[]>([]);
+
+  useEffect(() => {
+    try {
+      const storedPayments = localStorage.getItem('payments');
+      if (storedPayments) {
+        const payments: Payment[] = JSON.parse(storedPayments);
+        const sortedPayments = payments.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        const latestSales = sortedPayments.slice(0, 5).map((p) => ({
+          id: p.id,
+          name: p.clientName,
+          email: p.clientEmail,
+          amount: p.amount,
+        }));
+        setRecentSales(latestSales);
+      }
+    } catch (error) {
+      console.error('Failed to load recent sales from localStorage', error);
+      setRecentSales([]);
+    }
+  }, []);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -84,29 +124,41 @@ export default function DashboardPage() {
           <Card className="col-span-4 lg:col-span-3">
             <CardHeader>
               <CardTitle>Vendas Recentes</CardTitle>
-              <CardDescription>
-                Você fez 265 vendas este mês.
-              </CardDescription>
+              <CardDescription>As suas vendas mais recentes.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">
-                {recentSales.map((sale) => (
-                  <div className="flex items-center" key={sale.email}>
-                    <Avatar className="h-9 w-9">
-                      {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt="Avatar" data-ai-hint={userAvatar.imageHint} />}
-                      <AvatarFallback>{sale.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="ml-4 space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {sale.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {sale.email}
-                      </p>
+                {recentSales.length > 0 ? (
+                  recentSales.map((sale) => (
+                    <div className="flex items-center" key={sale.id}>
+                      <Avatar className="h-9 w-9">
+                        {userAvatar && (
+                          <AvatarImage
+                            src={userAvatar.imageUrl}
+                            alt="Avatar"
+                            data-ai-hint={userAvatar.imageHint}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {sale.name ? sale.name.charAt(0) : ''}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="ml-4 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {sale.name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {sale.email}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">{sale.amount}</div>
                     </div>
-                    <div className="ml-auto font-medium">{sale.amount}</div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma venda recente.
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
