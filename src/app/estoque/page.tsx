@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { PlusCircle, Trash2, Pencil, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 
 const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
 type Status = (typeof statuses)[number];
@@ -55,6 +56,7 @@ type Account = {
   remetente: string;
   categoria: string;
   status: Status;
+  observacao?: string;
 };
 
 const categories = [
@@ -90,6 +92,7 @@ export default function EstoquePage() {
   const [newRemetente, setNewRemetente] = useState('');
   const [newCategoria, setNewCategoria] = useState('');
   const [newStatus, setNewStatus] = useState<Status | ''>('');
+  const [newObservacao, setNewObservacao] = useState('');
 
   // State for editing an account
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -101,6 +104,7 @@ export default function EstoquePage() {
   const [editedRemetente, setEditedRemetente] = useState('');
   const [editedCategoria, setEditedCategoria] = useState('');
   const [editedStatus, setEditedStatus] = useState<Status>('Estoque');
+  const [editedObservacao, setEditedObservacao] = useState('');
 
   useEffect(() => {
     try {
@@ -129,6 +133,7 @@ export default function EstoquePage() {
       setEditedRemetente(editingAccount.remetente);
       setEditedCategoria(editingAccount.categoria);
       setEditedStatus(editingAccount.status);
+      setEditedObservacao(editingAccount.observacao || '');
     }
   }, [editingAccount]);
 
@@ -147,6 +152,7 @@ export default function EstoquePage() {
       remetente: newRemetente,
       categoria: newCategoria,
       status: newStatus,
+      observacao: newObservacao,
     };
 
     const updatedAccounts = [...accounts, newAccount];
@@ -161,6 +167,7 @@ export default function EstoquePage() {
     setNewRemetente('');
     setNewCategoria('');
     setNewStatus('');
+    setNewObservacao('');
     setIsAddSheetOpen(false);
   };
 
@@ -193,6 +200,7 @@ export default function EstoquePage() {
           remetente: editedRemetente,
           categoria: editedCategoria,
           status: editedStatus,
+          observacao: editedObservacao,
         };
       }
       return account;
@@ -340,6 +348,18 @@ export default function EstoquePage() {
                     onChange={(e) => setNewRemetente(e.target.value)}
                   />
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="observacao" className="text-right">
+                    Observação
+                  </Label>
+                  <Textarea
+                    id="observacao"
+                    placeholder="Qualquer observação"
+                    className="col-span-3"
+                    value={newObservacao}
+                    onChange={(e) => setNewObservacao(e.target.value)}
+                  />
+                </div>
                 <Button onClick={handleAddAccount} className="w-full">
                   Salvar conta
                 </Button>
@@ -371,6 +391,7 @@ export default function EstoquePage() {
               <TableHead>Remetente</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Observação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -406,6 +427,7 @@ export default function EstoquePage() {
                       {account.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>{account.observacao}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -436,7 +458,7 @@ export default function EstoquePage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   Nenhuma conta encontrada.
                 </TableCell>
               </TableRow>
@@ -583,6 +605,18 @@ export default function EstoquePage() {
                 className="col-span-3"
                 value={editedRemetente}
                 onChange={(e) => setEditedRemetente(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-observacao" className="text-right">
+                Observação
+              </Label>
+              <Textarea
+                id="edit-observacao"
+                placeholder="Qualquer observação"
+                className="col-span-3"
+                value={editedObservacao}
+                onChange={(e) => setEditedObservacao(e.target.value)}
               />
             </div>
             <Button onClick={handleUpdateAccount} className="w-full">
