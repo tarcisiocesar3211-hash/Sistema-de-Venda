@@ -25,6 +25,7 @@ import {
 
 type Payment = {
   id: string;
+  clientId: string;
   clientName: string;
   clientEmail: string;
   amount: string;

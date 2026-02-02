@@ -33,10 +33,12 @@ type Sale = {
   name: string;
   email: string;
   amount: string;
+  planName: string;
 };
 
 type Payment = {
   id: string;
+  clientId?: string;
   clientName: string;
   clientEmail: string;
   amount: string;
@@ -124,17 +126,6 @@ export default function DashboardPage() {
       const storedPayments = localStorage.getItem('payments');
       if (storedPayments) {
         const payments: Payment[] = JSON.parse(storedPayments);
-        const sortedPayments = payments.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        const latestSales = sortedPayments.slice(0, 5).map((p) => ({
-          id: p.id,
-          name: p.clientName,
-          email: p.clientEmail,
-          amount: p.amount,
-        }));
-        setRecentSales(latestSales);
-
         const now = new Date();
         const currentMonth = getMonth(now);
         const currentYear = getYear(now);
@@ -201,7 +192,6 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Failed to load data from localStorage', error);
-      setRecentSales([]);
       setTotalRevenue(0);
       setRevenueChange(0);
       setSalesToday(0);
@@ -219,6 +209,32 @@ export default function DashboardPage() {
       const plans: Plan[] = storedPlans
         ? JSON.parse(storedPlans)
         : initialPlans;
+
+      const storedPayments = localStorage.getItem('payments');
+      if (storedPayments) {
+        const payments: Payment[] = JSON.parse(storedPayments);
+        const sortedPayments = payments.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        );
+        const latestSales = sortedPayments.slice(0, 5).map((p) => {
+          const client = p.clientId
+            ? clients.find((c) => c.id === p.clientId)
+            : undefined;
+          const plan = client
+            ? plans.find((pl) => pl.id === client.planId)
+            : undefined;
+          return {
+            id: p.id,
+            name: p.clientName,
+            email: p.clientEmail,
+            amount: p.amount,
+            planName: plan ? plan.name : 'N/A',
+          };
+        });
+        setRecentSales(latestSales);
+      } else {
+        setRecentSales([]);
+      }
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -459,33 +475,37 @@ export default function DashboardPage() {
               <CardDescription>As suas vendas mais recentes.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-8">
+              <div className="space-y-4">
                 {recentSales.length > 0 ? (
-                  recentSales.map((sale) => (
-                    <div className="flex items-center" key={sale.id}>
-                      <Avatar className="h-9 w-9">
-                        {userAvatar && (
-                          <AvatarImage
-                            src={userAvatar.imageUrl}
-                            alt="Avatar"
-                            data-ai-hint={userAvatar.imageHint}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {sale.name ? sale.name.charAt(0) : ''}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="ml-4 space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {sale.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {sale.email}
-                        </p>
-                      </div>
-                      <div className="ml-auto font-medium">{sale.amount}</div>
+                  <>
+                    <div className="grid grid-cols-8 items-center gap-4 text-xs font-medium text-muted-foreground border-b pb-2">
+                      <div className="col-span-2">Nome</div>
+                      <div className="col-span-3">E-mail</div>
+                      <div className="col-span-1">Plano</div>
+                      <div className="col-span-2 text-right">Valor</div>
                     </div>
-                  ))
+                    <div className="space-y-4">
+                      {recentSales.map((sale) => (
+                        <div
+                          className="grid grid-cols-8 items-center gap-4"
+                          key={sale.id}
+                        >
+                          <p className="col-span-2 text-sm font-medium leading-none truncate">
+                            {sale.name}
+                          </p>
+                          <p className="col-span-3 text-sm text-muted-foreground truncate">
+                            {sale.email}
+                          </p>
+                          <p className="col-span-1 text-sm text-muted-foreground truncate">
+                            {sale.planName}
+                          </p>
+                          <div className="col-span-2 font-medium text-right">
+                            {sale.amount}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Nenhuma venda recente.

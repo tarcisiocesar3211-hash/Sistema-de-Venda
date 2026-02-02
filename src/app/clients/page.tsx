@@ -78,6 +78,7 @@ type Client = {
 
 type Payment = {
   id: string;
+  clientId: string;
   clientName: string;
   clientEmail: string;
   amount: string;
@@ -216,6 +217,7 @@ export default function ClientsPage() {
     const plan = plans.find((p) => p.id === newClient.planId);
     const newPayment: Payment = {
       id: `PAY${Date.now()}`,
+      clientId: newClient.id,
       clientName: newClient.name,
       clientEmail: newClient.email,
       amount: plan ? plan.price : 'N/A',
@@ -302,6 +304,7 @@ export default function ClientsPage() {
     const plan = plans.find((p) => p.id === clientToRenew.planId);
     const newPayment: Payment = {
       id: `PAY${Date.now()}`,
+      clientId: clientToRenew.id,
       clientName: clientToRenew.name,
       clientEmail: clientToRenew.email,
       amount: plan ? plan.price : 'N/A',
@@ -404,6 +407,7 @@ export default function ClientsPage() {
         const plan = plans.find((p) => p.id === client.planId);
         const newPayment: Payment = {
           id: `PAY${Date.now()}_${client.id}`,
+          clientId: client.id,
           clientName: client.name,
           clientEmail: client.email,
           amount: plan ? plan.price : 'N/A',
