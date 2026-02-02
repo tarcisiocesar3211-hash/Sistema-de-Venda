@@ -98,6 +98,7 @@ export default function ClientsPage() {
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   // State for adding a new client
   const [newClientName, setNewClientName] = useState('');
@@ -133,6 +134,10 @@ export default function ClientsPage() {
     key: null,
     direction: 'ascending',
   });
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+  };
 
   useEffect(() => {
     try {
@@ -496,14 +501,22 @@ export default function ClientsPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar por nome ou e-mail..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
+        <div className="flex w-full max-w-sm items-center space-x-2">
+          <div className="relative flex-grow">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar por nome ou e-mail..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
+              className="pl-8"
+            />
+          </div>
+          <Button onClick={handleSearch}>Procurar</Button>
         </div>
         <div className="flex items-center space-x-2">
           <DropdownMenu>
