@@ -30,6 +30,17 @@ type Payment = {
   date: string;
 };
 
+type Client = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  planId: string;
+  dueDate: string;
+  tela?: string;
+  pin?: string;
+};
+
 export default function DashboardPage() {
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
@@ -38,6 +49,7 @@ export default function DashboardPage() {
   const [revenueChange, setRevenueChange] = useState(0);
   const [salesToday, setSalesToday] = useState(0);
   const [salesChange, setSalesChange] = useState(0);
+  const [dueTodayCount, setDueTodayCount] = useState(0);
 
   useEffect(() => {
     try {
@@ -130,15 +142,22 @@ export default function DashboardPage() {
 
     try {
       const storedClients = localStorage.getItem('clients');
-      if (storedClients) {
-        const clients = JSON.parse(storedClients);
-        setTotalClients(clients.length);
-      } else {
-        setTotalClients(clientsData.length);
-      }
+      const clients: Client[] = storedClients
+        ? JSON.parse(storedClients)
+        : clientsData;
+      setTotalClients(clients.length);
+
+      const dueToday = clients.filter(
+        (client) => client.dueDate && isToday(parseISO(client.dueDate))
+      ).length;
+      setDueTodayCount(dueToday);
     } catch (error) {
       console.error('Failed to load clients from localStorage', error);
       setTotalClients(clientsData.length);
+      const dueToday = clientsData.filter(
+        (client) => client.dueDate && isToday(parseISO(client.dueDate))
+      ).length;
+      setDueTodayCount(dueToday);
     }
   }, []);
 
@@ -195,13 +214,15 @@ export default function DashboardPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ativos Agora</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Vencendo Hoje
+              </CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+573</div>
+              <div className="text-2xl font-bold">{dueTodayCount}</div>
               <p className="text-xs text-muted-foreground">
-                +201 desde a última hora
+                Total de clientes com vencimento hoje
               </p>
             </CardContent>
           </Card>
