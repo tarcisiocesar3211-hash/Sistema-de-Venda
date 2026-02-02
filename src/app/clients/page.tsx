@@ -85,7 +85,7 @@ type Payment = {
 };
 
 type SortConfig = {
-  key: 'status' | null;
+  key: 'status' | 'name' | null;
   direction: 'ascending' | 'descending';
 };
 
@@ -342,7 +342,7 @@ export default function ClientsPage() {
     return { text: `Faltam ${daysDiff} dia(s)`, type: 'Pago', daysDiff };
   };
 
-  const handleSort = (key: 'status') => {
+  const handleSort = (key: 'status' | 'name') => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -368,8 +368,10 @@ export default function ClientsPage() {
       };
     });
 
+    const sortableClients = [...clientsWithPlanDetails];
+
     if (sortConfig.key === 'status') {
-      clientsWithPlanDetails.sort((a, b) => {
+      sortableClients.sort((a, b) => {
         const aDays = a.daysUntilDue ?? Number.MAX_SAFE_INTEGER;
         const bDays = b.daysUntilDue ?? Number.MAX_SAFE_INTEGER;
 
@@ -381,8 +383,14 @@ export default function ClientsPage() {
         }
         return 0;
       });
+    } else if (sortConfig.key === 'name') {
+      sortableClients.sort((a, b) => {
+        const comparison = a.name.localeCompare(b.name);
+        return sortConfig.direction === 'ascending' ? comparison : -comparison;
+      });
     }
-    return clientsWithPlanDetails;
+
+    return sortableClients;
   }, [clients, plans, sortConfig]);
 
   const handleRenewSelected = () => {
@@ -769,7 +777,16 @@ export default function ClientsPage() {
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>Nome</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('name')}
+                  className="px-0 hover:bg-transparent"
+                >
+                  Nome
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Tela</TableHead>
