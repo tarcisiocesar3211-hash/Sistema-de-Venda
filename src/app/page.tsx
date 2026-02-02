@@ -160,7 +160,6 @@ export default function DashboardPage() {
 
       let currentMonthRevenue = 0;
       let lastMonthRevenue = 0;
-      let total = 0;
       let todaySalesValue = 0;
       let yesterdaySalesValue = 0;
 
@@ -170,7 +169,6 @@ export default function DashboardPage() {
         const amount = parseFloat(amountString);
 
         if (!isNaN(amount)) {
-          total += amount;
           const paymentMonth = getMonth(paymentDate);
           const paymentYear = getYear(paymentDate);
 
@@ -191,7 +189,7 @@ export default function DashboardPage() {
         }
       });
 
-      setTotalRevenue(total);
+      setTotalRevenue(currentMonthRevenue);
 
       if (lastMonthRevenue > 0) {
         const change =
@@ -302,7 +300,7 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Receita Total
+                Receita Mensal
               </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
