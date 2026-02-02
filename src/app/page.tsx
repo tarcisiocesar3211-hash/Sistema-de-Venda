@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 import SalesChart from '@/components/sales-chart';
 import { placeholderImages } from '@/lib/placeholder-images';
+import { clients as clientsData } from '@/lib/data';
 
 type Sale = {
   id: string;
@@ -31,6 +32,7 @@ type Payment = {
 export default function DashboardPage() {
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
+  const [totalClients, setTotalClients] = useState(0);
 
   useEffect(() => {
     try {
@@ -51,6 +53,19 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to load recent sales from localStorage', error);
       setRecentSales([]);
+    }
+
+    try {
+      const storedClients = localStorage.getItem('clients');
+      if (storedClients) {
+        const clients = JSON.parse(storedClients);
+        setTotalClients(clients.length);
+      } else {
+        setTotalClients(clientsData.length);
+      }
+    } catch (error) {
+      console.error('Failed to load clients from localStorage', error);
+      setTotalClients(clientsData.length);
     }
   }, []);
 
@@ -81,9 +96,9 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
+              <div className="text-2xl font-bold">{totalClients}</div>
               <p className="text-xs text-muted-foreground">
-                +180.1% do mês passado
+                Total de clientes registrados
               </p>
             </CardContent>
           </Card>
