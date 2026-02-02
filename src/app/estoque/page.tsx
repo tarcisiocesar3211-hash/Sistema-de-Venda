@@ -68,10 +68,10 @@ const categories = [
   'Deezer',
   'UFC',
   'NBA',
-  'CAPCUT',
-  'CRUNCHYROLL',
-  'PRIME VIDEO',
-  'XBOX',
+  'Capcut',
+  'Crunchyroll',
+  'Prime Video',
+  'Xbox',
 ];
 const initialAccounts: Account[] = [];
 
