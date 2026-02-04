@@ -43,6 +43,9 @@
         "suporte": {
             "type": "boolean"
         },
+        "observacao": {
+            "type": "string"
+        },
         "createdAt": {
           "type": "string",
           "description": "The date and time when the client was created.",

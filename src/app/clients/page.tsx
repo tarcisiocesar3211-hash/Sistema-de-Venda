@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import {
   PlusCircle,
   Trash2,
@@ -87,6 +88,7 @@ type Client = {
   tela?: string;
   pin?: string;
   suporte?: boolean;
+  observacao?: string;
 };
 
 type Payment = {
@@ -141,6 +143,7 @@ export default function ClientsPage() {
   const [newClientPin, setNewClientPin] = useState('');
   const [newClientDueDate, setNewClientDueDate] = useState<string>('');
   const [newClientSuporte, setNewClientSuporte] = useState(false);
+  const [newClientObservacao, setNewClientObservacao] = useState('');
   const [dueDateType, setDueDateType] = useState<'automatico' | 'manual'>(
     'automatico'
   );
@@ -155,6 +158,7 @@ export default function ClientsPage() {
   const [editedClientPin, setEditedClientPin] = useState('');
   const [editedClientDueDate, setEditedClientDueDate] = useState<string>('');
   const [editedClientSuporte, setEditedClientSuporte] = useState(false);
+  const [editedClientObservacao, setEditedClientObservacao] = useState('');
   const [editedDueDateType, setEditedDueDateType] = useState<
     'automatico' | 'manual'
   >('automatico');
@@ -181,6 +185,7 @@ export default function ClientsPage() {
       setEditedClientTela(editingClient.tela || '');
       setEditedClientPin(editingClient.pin || '');
       setEditedClientSuporte(editingClient.suporte || false);
+      setEditedClientObservacao(editingClient.observacao || '');
       if (editingClient.dueDate) {
         setEditedClientDueDate(
           format(parseISO(editingClient.dueDate), 'yyyy-MM-dd')
@@ -218,6 +223,7 @@ export default function ClientsPage() {
       tela: newClientTela,
       pin: newClientPin,
       suporte: newClientSuporte,
+      observacao: newClientObservacao,
     };
 
     const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', newClientId);
@@ -243,6 +249,7 @@ export default function ClientsPage() {
     setNewClientTela('');
     setNewClientPin('');
     setNewClientSuporte(false);
+    setNewClientObservacao('');
     setNewClientDueDate('');
     setDueDateType('automatico');
     setIsAddSheetOpen(false);
@@ -283,6 +290,7 @@ export default function ClientsPage() {
       tela: editedClientTela,
       pin: editedClientPin,
       suporte: editedClientSuporte,
+      observacao: editedClientObservacao,
     };
 
     const clientRef = doc(firestore, 'users', SHARED_USER_ID, 'clients', editingClient.id);
@@ -703,6 +711,18 @@ export default function ClientsPage() {
                       </Label>
                     </div>
                   </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="observacao" className="text-right">
+                      Observação
+                    </Label>
+                    <Textarea
+                      id="observacao"
+                      placeholder="Qualquer observação"
+                      className="col-span-3"
+                      value={newClientObservacao}
+                      onChange={(e) => setNewClientObservacao(e.target.value)}
+                    />
+                  </div>
 
                   <Button onClick={handleAddClient} className="w-full">
                     Salvar cliente
@@ -738,6 +758,7 @@ export default function ClientsPage() {
               <TableHead>Telefone</TableHead>
               <TableHead>Tela</TableHead>
               <TableHead>PIN</TableHead>
+              <TableHead>Observação</TableHead>
               <TableHead>Plano</TableHead>
               <TableHead>Valor do Plano</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -787,6 +808,7 @@ export default function ClientsPage() {
                 <TableCell className="text-xs">{client.phone}</TableCell>
                 <TableCell className="text-xs">{client.tela}</TableCell>
                 <TableCell className="text-xs">{client.pin}</TableCell>
+                <TableCell className="text-xs">{client.observacao}</TableCell>
                 <TableCell className="text-xs">{client.planName}</TableCell>
                 <TableCell className="text-xs">{client.planPrice}</TableCell>
                 <TableCell className="text-xs">
@@ -984,6 +1006,18 @@ export default function ClientsPage() {
                   SIM
                 </Label>
               </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-observacao" className="text-right">
+                Observação
+              </Label>
+              <Textarea
+                id="edit-observacao"
+                placeholder="Qualquer observação"
+                className="col-span-3"
+                value={editedClientObservacao}
+                onChange={(e) => setEditedClientObservacao(e.target.value)}
+              />
             </div>
             <Button onClick={handleUpdateClient} className="w-full">
               Salvar alterações
