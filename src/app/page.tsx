@@ -9,7 +9,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
+import {
+  DollarSign,
+  Users,
+  CreditCard,
+  Activity,
+  CalendarClock,
+} from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
 import {
   getMonth,
@@ -98,7 +104,7 @@ export default function DashboardPage() {
     [firestore]
   );
   const { data: initialPlans } = useCollection<Plan>(plansQuery);
-  
+
   const invoicesQuery = useMemoFirebase(
     () =>
       firestore ? collection(firestore, 'users', SHARED_USER_ID, 'invoices') : null,
@@ -115,6 +121,9 @@ export default function DashboardPage() {
   const [salesToday, setSalesToday] = useState(0);
   const [salesChange, setSalesChange] = useState(0);
   const [dueTodayCount, setDueTodayCount] = useState(0);
+  const [dueTodayValue, setDueTodayValue] = useState(0);
+  const [dueTomorrowCount, setDueTomorrowCount] = useState(0);
+  const [dueTomorrowValue, setDueTomorrowValue] = useState(0);
   const [openDues, setOpenDues] = useState<OpenDueClient[]>([]);
   const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
 
@@ -224,10 +233,12 @@ export default function DashboardPage() {
 
     let totalValue = 0;
     if (clients.length > 0 && plans.length > 0) {
-      clients.forEach(client => {
-        const plan = plans.find(p => p.id === client.planId);
+      clients.forEach((client) => {
+        const plan = plans.find((p) => p.id === client.planId);
         if (plan && plan.price) {
-          const amountString = plan.price.replace(/[^\d,]/g, '').replace(',', '.');
+          const amountString = plan.price
+            .replace(/[^\d,]/g, '')
+            .replace(',', '.');
           const amount = parseFloat(amountString);
           if (!isNaN(amount)) {
             totalValue += amount;
@@ -265,10 +276,54 @@ export default function DashboardPage() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const dueToday = clients.filter(
+    const dueTodayClients = clients.filter(
       (client) => client.dueDate && isToday(parseISO(client.dueDate))
-    ).length;
-    setDueTodayCount(dueToday);
+    );
+    setDueTodayCount(dueTodayClients.length);
+
+    let todayValue = 0;
+    if (dueTodayClients.length > 0 && plans.length > 0) {
+      dueTodayClients.forEach((client) => {
+        const plan = plans.find((p) => p.id === client.planId);
+        if (plan && plan.price) {
+          const amountString = plan.price
+            .replace(/[^\d,]/g, '')
+            .replace(',', '.');
+          const amount = parseFloat(amountString);
+          if (!isNaN(amount)) {
+            todayValue += amount;
+          }
+        }
+      });
+    }
+    setDueTodayValue(todayValue);
+
+    const dueTomorrowClients = clients.filter((client) => {
+      if (!client.dueDate) return false;
+      const dueDate = parseISO(client.dueDate);
+      const dueDateMidnight = new Date(dueDate);
+      dueDateMidnight.setHours(0, 0, 0, 0);
+      return differenceInDays(dueDateMidnight, today) === 1;
+    });
+
+    setDueTomorrowCount(dueTomorrowClients.length);
+
+    let tomorrowValue = 0;
+    if (dueTomorrowClients.length > 0 && plans.length > 0) {
+      dueTomorrowClients.forEach((client) => {
+        const plan = plans.find((p) => p.id === client.planId);
+        if (plan && plan.price) {
+          const amountString = plan.price
+            .replace(/[^\d,]/g, '')
+            .replace(',', '.');
+          const amount = parseFloat(amountString);
+          if (!isNaN(amount)) {
+            tomorrowValue += amount;
+          }
+        }
+      });
+    }
+    setDueTomorrowValue(tomorrowValue);
 
     const openDuesClients = clients
       .filter((client) => {
@@ -312,7 +367,7 @@ export default function DashboardPage() {
         Painel
       </h2>
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
@@ -369,7 +424,21 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold">{dueTodayCount}</div>
               <p className="text-xs text-muted-foreground">
-                Total de clientes com vencimento hoje
+                Valor total: R$ {dueTodayValue.toFixed(2).replace('.', ',')}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Vencimento Amanhã
+              </CardTitle>
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dueTomorrowCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Valor total: R$ {dueTomorrowValue.toFixed(2).replace('.', ',')}
               </p>
             </CardContent>
           </Card>
