@@ -507,7 +507,7 @@ export default function DashboardPage() {
                       <div className="col-span-2">Valor</div>
                       <div className="col-span-2">Status</div>
                       <div className="col-span-3 text-right">
-                        Data de Pagamento
+                        Vencimento
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -537,7 +537,27 @@ export default function DashboardPage() {
                             </Badge>
                           </div>
                           <p className="col-span-3 text-sm text-muted-foreground truncate text-right">
-                            {format(parseISO(invoice.dueDate), 'dd/MM/yyyy')}
+                            {(() => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+
+                              const dueDate = parseISO(invoice.dueDate);
+                              const dueDateMidnight = new Date(dueDate);
+                              dueDateMidnight.setHours(0, 0, 0, 0);
+
+                              const daysDiff = differenceInDays(
+                                dueDateMidnight,
+                                today
+                              );
+
+                              if (daysDiff < 0) {
+                                return `Vencido há ${-daysDiff} dia(s)`;
+                              }
+                              if (daysDiff === 0) {
+                                return 'Vence hoje';
+                              }
+                              return `Faltam ${daysDiff} dia(s)`;
+                            })()}
                           </p>
                         </div>
                       ))}
