@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const router = useRouter();
   const { toast } = useToast();
-  const fixedPassword = 'tarcio2010';
+  const fixedPassword = 'T@rcio2010';
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
