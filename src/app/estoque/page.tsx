@@ -18,6 +18,12 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,6 +45,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { PlusCircle, Trash2, Pencil, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +58,7 @@ import {
   deleteDocumentNonBlocking,
   setDocumentNonBlocking,
 } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
 
 const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
@@ -92,15 +99,20 @@ export default function EstoquePage() {
 
   const accountsQuery = useMemoFirebase(
     () =>
-      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'accounts') : null,
+      firestore
+        ? collection(firestore, 'users', SHARED_USER_ID, 'accounts')
+        : null,
     [firestore]
   );
   const { data: accounts } = useCollection<Account>(accountsQuery);
 
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
-  const [deletionTarget, setDeletionTarget] = useState<string | null>(null);
+  const [deletionTarget, setDeletionTarget] = useState<
+    string | 'selected' | null
+  >(null);
   const { toast } = useToast();
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
 
   // Form states for adding
   const [newEmail, setNewEmail] = useState('');
@@ -155,7 +167,13 @@ export default function EstoquePage() {
       observacao: newObservacao,
     };
 
-    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', newAccountId);
+    const accountRef = doc(
+      firestore,
+      'users',
+      SHARED_USER_ID,
+      'accounts',
+      newAccountId
+    );
     setDocumentNonBlocking(accountRef, newAccount, { merge: true });
 
     setNewEmail('');
@@ -199,7 +217,13 @@ export default function EstoquePage() {
       observacao: editedObservacao,
     };
 
-    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', editingAccount.id);
+    const accountRef = doc(
+      firestore,
+      'users',
+      SHARED_USER_ID,
+      'accounts',
+      editingAccount.id
+    );
     setDocumentNonBlocking(accountRef, updatedAccountData, { merge: true });
 
     setIsEditSheetOpen(false);
@@ -225,6 +249,77 @@ export default function EstoquePage() {
     return accounts.filter((acc) => acc.categoria === selectedCategory);
   }, [accounts, selectedCategory]);
 
+  const allVisibleSelected = useMemo(() => {
+    if (filteredAccounts.length === 0) return false;
+    return filteredAccounts.every((acc) => selectedAccounts.includes(acc.id));
+  }, [filteredAccounts, selectedAccounts]);
+
+  const handleSelectAllVisible = (checked: boolean | 'indeterminate') => {
+    if (checked === true) {
+      const visibleIds = filteredAccounts.map((acc) => acc.id);
+      setSelectedAccounts((prev) => [...new Set([...prev, ...visibleIds])]);
+    } else {
+      const visibleIds = filteredAccounts.map((acc) => acc.id);
+      setSelectedAccounts((prev) =>
+        prev.filter((id) => !visibleIds.includes(id))
+      );
+    }
+  };
+
+  const handleCopySelectedAccounts = () => {
+    if (selectedAccounts.length === 0 || !accounts) return;
+
+    const textToCopy = accounts
+      .filter((acc) => selectedAccounts.includes(acc.id))
+      .map(
+        (account) =>
+          `Categoria: ${account.categoria}\nE-mail: ${account.email}\nSenha: ${
+            account.senha
+          }\nTela: ${account.tela}\nPin: ${account.pin}\nRemetente: ${
+            account.remetente
+          }\nStatus: ${account.status}\nObservação: ${account.observacao || ''}`
+      )
+      .join('\n\n---\n\n');
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Contas copiadas!',
+        description: 'Os dados das contas selecionadas foram copiados.',
+      });
+    });
+  };
+
+  const handleDeleteSelectedAccounts = () => {
+    if (selectedAccounts.length === 0 || !firestore) return;
+
+    const batch = writeBatch(firestore);
+    selectedAccounts.forEach((accountId) => {
+      const accountRef = doc(
+        firestore,
+        'users',
+        SHARED_USER_ID,
+        'accounts',
+        accountId
+      );
+      batch.delete(accountRef);
+    });
+
+    batch
+      .commit()
+      .then(() => {
+        setSelectedAccounts([]);
+        setDeletionTarget(null);
+      })
+      .catch((error) => {
+        console.error('Error deleting selected accounts: ', error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro!',
+          description: 'Não foi possível apagar as contas selecionadas.',
+        });
+      });
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
@@ -232,6 +327,27 @@ export default function EstoquePage() {
           Estoque
         </h2>
         <div className="flex items-center space-x-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={selectedAccounts.length === 0}>
+                Ações em Massa
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleCopySelectedAccounts}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar Selecionadas
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeletionTarget('selected')}
+                className="text-red-500 hover:text-red-500 focus:text-red-500"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Apagar Selecionadas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
             <SheetTrigger asChild>
               <Button>
@@ -379,6 +495,13 @@ export default function EstoquePage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>
+                <Checkbox
+                  checked={allVisibleSelected}
+                  onCheckedChange={handleSelectAllVisible}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Senha</TableHead>
               <TableHead>Tela</TableHead>
@@ -393,7 +516,27 @@ export default function EstoquePage() {
           <TableBody>
             {filteredAccounts.length > 0 ? (
               filteredAccounts.map((account) => (
-                <TableRow key={account.id}>
+                <TableRow
+                  key={account.id}
+                  data-state={
+                    selectedAccounts.includes(account.id) && 'selected'
+                  }
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedAccounts.includes(account.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedAccounts(
+                          checked
+                            ? [...selectedAccounts, account.id]
+                            : selectedAccounts.filter(
+                                (id) => id !== account.id
+                              )
+                        );
+                      }}
+                      aria-label="Selecionar linha"
+                    />
+                  </TableCell>
                   <TableCell>{account.email}</TableCell>
                   <TableCell>{account.senha}</TableCell>
                   <TableCell>{account.tela}</TableCell>
@@ -453,7 +596,7 @@ export default function EstoquePage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   Nenhuma conta encontrada.
                 </TableCell>
               </TableRow>
@@ -474,8 +617,11 @@ export default function EstoquePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              Essa ação não pode ser desfeita. Isso irá apagar permanentemente
-              esta conta.
+              Essa ação não pode ser desfeita. Isso irá apagar permanentemente{' '}
+              {deletionTarget === 'selected'
+                ? 'as contas selecionadas'
+                : 'esta conta'}
+              .
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -483,8 +629,10 @@ export default function EstoquePage() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (deletionTarget) {
-                  handleRemoveAccount(deletionTarget);
+                if (deletionTarget === 'selected') {
+                  handleDeleteSelectedAccounts();
+                } else if (deletionTarget) {
+                  handleRemoveAccount(deletionTarget as string);
                 }
               }}
             >
@@ -497,9 +645,7 @@ export default function EstoquePage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Editar conta</SheetTitle>
-            <SheetDescription>
-              Atualize os dados da conta.
-            </SheetDescription>
+            <SheetDescription>Atualize os dados da conta.</SheetDescription>
           </SheetHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
