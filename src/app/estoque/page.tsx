@@ -47,7 +47,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { PlusCircle, Trash2, Pencil, Copy } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Copy, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -94,6 +94,13 @@ const categories = [
   'Xbox',
 ];
 
+type SortableKey = 'email' | 'senha' | 'tela' | 'pin' | 'remetente' | 'categoria' | 'status' | 'observacao';
+
+type SortConfig = {
+  key: SortableKey | null;
+  direction: 'ascending' | 'descending';
+};
+
 export default function EstoquePage() {
   const { firestore } = useFirebase();
 
@@ -113,6 +120,11 @@ export default function EstoquePage() {
   >(null);
   const { toast } = useToast();
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: null,
+    direction: 'ascending',
+  });
+
 
   // Form states for adding
   const [newEmail, setNewEmail] = useState('');
@@ -241,25 +253,51 @@ export default function EstoquePage() {
     });
   };
 
-  const filteredAccounts = useMemo(() => {
-    if (!accounts) return [];
-    if (selectedCategory === 'Todos') {
-      return accounts;
+  const handleSort = (key: SortableKey) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
     }
-    return accounts.filter((acc) => acc.categoria === selectedCategory);
-  }, [accounts, selectedCategory]);
+    setSortConfig({ key, direction });
+  };
+
+  const filteredAndSortedAccounts = useMemo(() => {
+    if (!accounts) return [];
+
+    let currentAccounts =
+      selectedCategory === 'Todos'
+        ? accounts
+        : accounts.filter((acc) => acc.categoria === selectedCategory);
+
+    const sortableAccounts = [...currentAccounts];
+
+    if (sortConfig.key) {
+      sortableAccounts.sort((a, b) => {
+        const aValue = a[sortConfig.key!] ?? '';
+        const bValue = b[sortConfig.key!] ?? '';
+
+        const comparison = String(aValue).localeCompare(String(bValue));
+
+        return sortConfig.direction === 'ascending'
+          ? comparison
+          : -comparison;
+      });
+    }
+
+    return sortableAccounts;
+  }, [accounts, selectedCategory, sortConfig]);
 
   const allVisibleSelected = useMemo(() => {
-    if (filteredAccounts.length === 0) return false;
-    return filteredAccounts.every((acc) => selectedAccounts.includes(acc.id));
-  }, [filteredAccounts, selectedAccounts]);
+    if (filteredAndSortedAccounts.length === 0) return false;
+    return filteredAndSortedAccounts.every((acc) => selectedAccounts.includes(acc.id));
+  }, [filteredAndSortedAccounts, selectedAccounts]);
 
   const handleSelectAllVisible = (checked: boolean | 'indeterminate') => {
     if (checked === true) {
-      const visibleIds = filteredAccounts.map((acc) => acc.id);
+      const visibleIds = filteredAndSortedAccounts.map((acc) => acc.id);
       setSelectedAccounts((prev) => [...new Set([...prev, ...visibleIds])]);
     } else {
-      const visibleIds = filteredAccounts.map((acc) => acc.id);
+      const visibleIds = filteredAndSortedAccounts.map((acc) => acc.id);
       setSelectedAccounts((prev) =>
         prev.filter((id) => !visibleIds.includes(id))
       );
@@ -502,20 +540,60 @@ export default function EstoquePage() {
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>E-mail</TableHead>
-              <TableHead>Senha</TableHead>
-              <TableHead>Tela</TableHead>
-              <TableHead>PIN</TableHead>
-              <TableHead>Remetente</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Observação</TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('email')} className="px-0 hover:bg-transparent">
+                  E-mail
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('senha')} className="px-0 hover:bg-transparent">
+                  Senha
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('tela')} className="px-0 hover:bg-transparent">
+                  Tela
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('pin')} className="px-0 hover:bg-transparent">
+                  PIN
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('remetente')} className="px-0 hover:bg-transparent">
+                  Remetente
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('categoria')} className="px-0 hover:bg-transparent">
+                  Categoria
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('status')} className="px-0 hover:bg-transparent">
+                  Status
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort('observacao')} className="px-0 hover:bg-transparent">
+                  Observação
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAccounts.length > 0 ? (
-              filteredAccounts.map((account) => (
+            {filteredAndSortedAccounts.length > 0 ? (
+              filteredAndSortedAccounts.map((account) => (
                 <TableRow
                   key={account.id}
                   data-state={
