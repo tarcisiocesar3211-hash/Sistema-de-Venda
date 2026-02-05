@@ -61,7 +61,7 @@ import {
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
 
-const statuses = ['Estoque', 'Vendido', 'Caida'] as const;
+const statuses = ['Disponivel', 'Vendido', 'Estoque', 'Caida', 'Pagamento'] as const;
 type Status = (typeof statuses)[number];
 
 type Account = {
@@ -654,21 +654,18 @@ export default function EstoquePage() {
                   <TableCell>{account.categoria}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={
-                        account.status === 'Vendido'
-                          ? 'default'
-                          : account.status === 'Caida'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                      className={cn(
-                        account.status === 'Vendido' &&
+                       className={cn(
+                        'border-none',
+                        account.status === 'Disponivel' &&
                           'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
+                        account.status === 'Vendido' &&
+                          'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
                         account.status === 'Estoque' &&
                           'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
                         account.status === 'Caida' &&
-                          'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
-                        'border-none'
+                          'bg-gray-800 text-gray-100 hover:bg-gray-700 dark:bg-gray-300 dark:text-gray-900',
+                        account.status === 'Pagamento' &&
+                          'bg-blue-500/20 text-blue-700 hover:bg-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
                       )}
                     >
                       {account.status}

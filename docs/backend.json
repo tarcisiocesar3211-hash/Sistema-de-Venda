@@ -92,7 +92,7 @@
         "pin": { "type": "string" },
         "remetente": { "type": "string" },
         "categoria": { "type": "string" },
-        "status": { "type": "string", "enum": ["Estoque", "Vendido", "Caida"] },
+        "status": { "type": "string", "enum": ["Disponivel", "Vendido", "Estoque", "Caida", "Pagamento"] },
         "observacao": { "type": "string" }
       },
       "required": ["id", "ownerId", "email", "senha", "categoria", "status"]
