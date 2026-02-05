@@ -47,7 +47,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { PlusCircle, Trash2, Pencil, Copy, ArrowUpDown } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil, Copy, ArrowUpDown, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -124,6 +124,8 @@ export default function EstoquePage() {
     key: null,
     direction: 'ascending',
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
 
   // Form states for adding
@@ -147,6 +149,10 @@ export default function EstoquePage() {
   const [editedCategoria, setEditedCategoria] = useState('');
   const [editedStatus, setEditedStatus] = useState<Status>('Estoque');
   const [editedObservacao, setEditedObservacao] = useState('');
+
+  const handleSearch = () => {
+    setSearchQuery(searchInput);
+  };
 
   useEffect(() => {
     if (editingAccount) {
@@ -263,11 +269,17 @@ export default function EstoquePage() {
 
   const filteredAndSortedAccounts = useMemo(() => {
     if (!accounts) return [];
+    
+    let searchedAccounts = searchQuery
+      ? accounts.filter((acc) =>
+          acc.email.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : accounts;
 
     let currentAccounts =
       selectedCategory === 'Todos'
-        ? accounts
-        : accounts.filter((acc) => acc.categoria === selectedCategory);
+        ? searchedAccounts
+        : searchedAccounts.filter((acc) => acc.categoria === selectedCategory);
 
     const sortableAccounts = [...currentAccounts];
 
@@ -285,7 +297,7 @@ export default function EstoquePage() {
     }
 
     return sortableAccounts;
-  }, [accounts, selectedCategory, sortConfig]);
+  }, [accounts, selectedCategory, sortConfig, searchQuery]);
 
   const allVisibleSelected = useMemo(() => {
     if (filteredAndSortedAccounts.length === 0) return false;
@@ -364,6 +376,25 @@ export default function EstoquePage() {
         <h2 className="text-3xl font-bold tracking-tight font-headline">
           Estoque
         </h2>
+      </div>
+      <div className="flex items-center justify-between">
+          <div className="flex w-full max-w-sm items-center space-x-2">
+            <div className="relative flex-grow">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar por e-mail..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch();
+                  }
+                }}
+                className="pl-8"
+              />
+            </div>
+            <Button onClick={handleSearch}>Procurar</Button>
+          </div>
         <div className="flex items-center space-x-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
