@@ -339,6 +339,22 @@ export default function EstoquePage() {
     });
   };
 
+  const handleCopySelectedEmails = () => {
+    if (selectedAccounts.length === 0 || !accounts) return;
+
+    const emailsToCopy = accounts
+      .filter((acc) => selectedAccounts.includes(acc.id))
+      .map((acc) => acc.email)
+      .join(', ');
+
+    navigator.clipboard.writeText(emailsToCopy).then(() => {
+      toast({
+        title: 'E-mails copiados!',
+        description: 'Os e-mails das contas selecionadas foram copiados para a área de transferência.',
+      });
+    });
+  };
+
   const handleDeleteSelectedAccounts = () => {
     if (selectedAccounts.length === 0 || !firestore) return;
 
@@ -412,6 +428,10 @@ export default function EstoquePage() {
               <DropdownMenuItem onClick={handleCopySelectedAccounts}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copiar Selecionadas
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopySelectedEmails}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar E-mails
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setDeletionTarget('selected')}
