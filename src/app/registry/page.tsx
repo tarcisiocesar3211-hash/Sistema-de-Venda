@@ -82,17 +82,23 @@ export default function RegistryPage() {
 
     const sessionToRemove = sessions.find(s => s.id === deletionTarget);
     
+    // Always remove the session from the state so it disappears from the list.
+    setSessions(prev => prev.filter(s => s.id !== deletionTarget));
+
     if (sessionToRemove?.isCurrent && auth) {
+        // If it's the current device, sign out.
         auth.signOut().then(() => {
             router.push('/login');
         });
     } else {
-        setSessions(prev => prev.filter(s => s.id !== deletionTarget));
+        // If it's another device, just show a toast.
         toast({
             title: 'Dispositivo removido',
             description: 'A sessão foi encerrada e o dispositivo precisará fazer login novamente no próximo acesso.',
         })
     }
+    
+    // Close the confirmation dialog.
     setDeletionTarget(null);
   };
   
