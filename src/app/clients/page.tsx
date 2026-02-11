@@ -537,6 +537,12 @@ export default function ClientsPage() {
             <Button onClick={handleSearch}>Procurar</Button>
           </div>
           <div className="flex items-center space-x-2">
+            {selectedClients.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {selectedClients.length}{' '}
+                {selectedClients.length === 1 ? 'selecionado' : 'selecionados'}
+              </span>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" disabled={selectedClients.length === 0}>

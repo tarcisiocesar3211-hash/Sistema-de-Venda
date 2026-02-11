@@ -396,6 +396,12 @@ export default function EstoquePage() {
             <Button onClick={handleSearch}>Procurar</Button>
           </div>
         <div className="flex items-center space-x-2">
+          {selectedAccounts.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {selectedAccounts.length}{' '}
+              {selectedAccounts.length === 1 ? 'selecionada' : 'selecionadas'}
+            </span>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" disabled={selectedAccounts.length === 0}>
