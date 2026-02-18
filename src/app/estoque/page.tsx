@@ -398,7 +398,7 @@ export default function EstoquePage() {
             <div className="relative flex-grow">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pesquisar por e-mail..."
+                placeholder="Pesquisar por e-mail ou @domínio..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => {
