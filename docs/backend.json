@@ -174,6 +174,19 @@
         "status",
         "dueDate"
       ]
+    },
+    "Annotation": {
+      "title": "Annotation",
+      "type": "object",
+      "description": "Represents a user-created note or annotation.",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "done"] }
+      },
+      "required": ["id", "ownerId", "title", "text", "status"]
     }
   },
   "auth": {
@@ -228,6 +241,15 @@
                   "$ref": "#/backend/entities/Plan"
               }
           }
+      },
+      {
+        "path": "/users/{userId}/annotations/{annotationId}",
+        "definition": {
+          "entityName": "Annotation",
+          "schema": {
+            "$ref": "#/backend/entities/Annotation"
+          }
+        }
       }
     ]
   }

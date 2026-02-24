@@ -8,7 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   DollarSign,
   Users,
@@ -17,6 +28,10 @@ import {
   CalendarClock,
   Clock,
   AlertCircle,
+  PlusCircle,
+  Circle,
+  CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
 import {
@@ -30,8 +45,14 @@ import {
 } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import {
+  useFirebase,
+  useCollection,
+  useMemoFirebase,
+  setDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
 import OutflowsChart from '@/components/outflows-chart';
 
@@ -78,6 +99,14 @@ type Invoice = {
   dueDate: string;
 };
 
+type Annotation = {
+  id: string;
+  ownerId: string;
+  title: string;
+  text: string;
+  status: 'pending' | 'done';
+};
+
 type OpenDueClient = Client & {
   statusText: string;
   statusType: 'Vencido' | 'Vence Hoje' | 'Pago';
@@ -115,6 +144,13 @@ export default function DashboardPage() {
   );
   const { data: initialInvoices } = useCollection<Invoice>(invoicesQuery);
 
+  const annotationsQuery = useMemoFirebase(
+    () =>
+      firestore ? collection(firestore, 'users', SHARED_USER_ID, 'annotations') : null,
+    [firestore]
+  );
+  const { data: annotationsData } = useCollection<Annotation>(annotationsQuery);
+
   const userAvatar = placeholderImages.find((img) => img.id === 'user-avatar');
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [totalClients, setTotalClients] = useState(0);
@@ -132,6 +168,12 @@ export default function DashboardPage() {
   const [outflowsChartData, setOutflowsChartData] = useState<{ name: string; total: number }[]>([]);
   const [openInvoices, setOpenInvoices] = useState<Invoice[]>([]);
   const [paidInvoices, setPaidInvoices] = useState<Invoice[]>([]);
+
+  const [pendingAnnotations, setPendingAnnotations] = useState<Annotation[]>([]);
+  const [doneAnnotations, setDoneAnnotations] = useState<Annotation[]>([]);
+  const [isNoteSheetOpen, setIsNoteSheetOpen] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteText, setNewNoteText] = useState('');
 
   const getStatus = (
     dueDate: string
@@ -415,6 +457,45 @@ export default function DashboardPage() {
     
   }, [initialInvoices]);
 
+  useEffect(() => {
+    if (annotationsData) {
+      setPendingAnnotations(annotationsData.filter(a => a.status === 'pending'));
+      setDoneAnnotations(annotationsData.filter(a => a.status === 'done'));
+    }
+  }, [annotationsData]);
+
+  const handleAddAnnotation = () => {
+    if (!newNoteTitle || !newNoteText || !firestore) return;
+
+    const newAnnotationId = `ANNO${Date.now()}`;
+    const newAnnotation: Omit<Annotation, 'id'> = {
+      ownerId: SHARED_USER_ID,
+      title: newNoteTitle,
+      text: newNoteText,
+      status: 'pending',
+    };
+    
+    const annotationRef = doc(firestore, 'users', SHARED_USER_ID, 'annotations', newAnnotationId);
+    setDocumentNonBlocking(annotationRef, newAnnotation, { merge: true });
+
+    setNewNoteTitle('');
+    setNewNoteText('');
+    setIsNoteSheetOpen(false);
+  };
+
+  const handleToggleAnnotationStatus = (id: string, currentStatus: 'pending' | 'done') => {
+    if (!firestore) return;
+    const newStatus = currentStatus === 'pending' ? 'done' : 'pending';
+    const annotationRef = doc(firestore, 'users', SHARED_USER_ID, 'annotations', id);
+    setDocumentNonBlocking(annotationRef, { status: newStatus }, { merge: true });
+  };
+  
+  const handleDeleteAnnotation = (id: string) => {
+    if (!firestore) return;
+    const annotationRef = doc(firestore, 'users', SHARED_USER_ID, 'annotations', id);
+    deleteDocumentNonBlocking(annotationRef);
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <h2 className="text-3xl font-bold tracking-tight font-headline">
@@ -683,6 +764,102 @@ export default function DashboardPage() {
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+          <Card className="col-span-full">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Anotações</CardTitle>
+                    <CardDescription>
+                        Suas anotações e tarefas rápidas.
+                    </CardDescription>
+                </div>
+                <Sheet open={isNoteSheetOpen} onOpenChange={setIsNoteSheetOpen}>
+                    <SheetTrigger asChild>
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Anotação
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent>
+                        <SheetHeader>
+                            <SheetTitle>Adicionar Anotação</SheetTitle>
+                            <SheetDescription>
+                                Crie uma nova anotação ou tarefa.
+                            </SheetDescription>
+                        </SheetHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="note-title">Título</Label>
+                                <Input
+                                    id="note-title"
+                                    placeholder="Título da anotação"
+                                    value={newNoteTitle}
+                                    onChange={(e) => setNewNoteTitle(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="note-text">Texto</Label>
+                                <Textarea
+                                    id="note-text"
+                                    placeholder="Escreva sua anotação aqui..."
+                                    value={newNoteText}
+                                    onChange={(e) => setNewNoteText(e.target.value)}
+                                />
+                            </div>
+                            <Button onClick={handleAddAnnotation} className="w-full">
+                                Salvar Anotação
+                            </Button>
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Para Fazer</h3>
+                    <div className="space-y-3">
+                        {pendingAnnotations.length > 0 ? (
+                            pendingAnnotations.map(note => (
+                                <div key={note.id} className="flex items-start gap-4 rounded-lg border p-3">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleToggleAnnotationStatus(note.id, note.status)}>
+                                        <Circle className="h-5 w-5" />
+                                    </Button>
+                                    <div className="flex-1">
+                                        <p className="font-semibold">{note.title}</p>
+                                        <p className="text-sm text-muted-foreground">{note.text}</p>
+                                    </div>
+                                     <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeleteAnnotation(note.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground pt-2">Nenhuma anotação pendente.</p>
+                        )}
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Feitas</h3>
+                    <div className="space-y-3">
+                         {doneAnnotations.length > 0 ? (
+                            doneAnnotations.map(note => (
+                                <div key={note.id} className="flex items-start gap-4 rounded-lg border p-3 opacity-60">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleToggleAnnotationStatus(note.id, note.status)}>
+                                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                    </Button>
+                                    <div className="flex-1">
+                                        <p className="font-semibold line-through">{note.title}</p>
+                                        <p className="text-sm text-muted-foreground line-through">{note.text}</p>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => handleDeleteAnnotation(note.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground pt-2">Nenhuma anotação concluída.</p>
+                        )}
+                    </div>
+                </div>
             </CardContent>
           </Card>
         </div>
