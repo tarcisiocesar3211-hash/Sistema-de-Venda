@@ -15,6 +15,8 @@ import {
   CreditCard,
   Activity,
   CalendarClock,
+  Clock,
+  AlertCircle,
 } from 'lucide-react';
 import { placeholderImages } from '@/lib/placeholder-images';
 import {
@@ -31,6 +33,7 @@ import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
+import OutflowsChart from '@/components/outflows-chart';
 
 type Sale = {
   id: string;
@@ -125,7 +128,10 @@ export default function DashboardPage() {
   const [dueTomorrowCount, setDueTomorrowCount] = useState(0);
   const [dueTomorrowValue, setDueTomorrowValue] = useState(0);
   const [openDues, setOpenDues] = useState<OpenDueClient[]>([]);
-  const [pendingInvoices, setPendingInvoices] = useState<Invoice[]>([]);
+  
+  const [outflowsChartData, setOutflowsChartData] = useState<{ name: string; total: number }[]>([]);
+  const [openInvoices, setOpenInvoices] = useState<Invoice[]>([]);
+  const [paidInvoices, setPaidInvoices] = useState<Invoice[]>([]);
 
   const getStatus = (
     dueDate: string
@@ -355,10 +361,58 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const invoices: Invoice[] = initialInvoices ?? [];
-    const pending = invoices.filter(
-      (invoice) => invoice.status === 'Pendente'
-    );
-    setPendingInvoices(pending);
+    
+    // --- Chart Data Calculation ---
+    const now = new Date();
+    const currentMonth = getMonth(now);
+    const currentYear = getYear(now);
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    let currentMonthOutflow = 0;
+    let prevMonthOutflow = 0;
+    
+    const allPaidInvoices = invoices.filter(inv => inv.status === 'Pago');
+
+    allPaidInvoices.forEach(invoice => {
+        try {
+            const paymentDate = parseISO(invoice.dueDate);
+            const amountString = invoice.amount.replace(/[^\d,]/g, '').replace(',', '.');
+            const amount = parseFloat(amountString);
+
+            if (!isNaN(amount)) {
+                const paymentMonth = getMonth(paymentDate);
+                const paymentYear = getYear(paymentDate);
+
+                if (paymentYear === currentYear && paymentMonth === currentMonth) {
+                    currentMonthOutflow += amount;
+                } else if (paymentYear === prevMonthYear && paymentMonth === prevMonth) {
+                    prevMonthOutflow += amount;
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing invoice date or amount", invoice);
+        }
+    });
+
+    setOutflowsChartData([
+        { name: 'Mês Passado', total: prevMonthOutflow },
+        { name: 'Mês Atual', total: currentMonthOutflow },
+    ]);
+    
+    // --- Open Invoices Calculation ---
+    const open = invoices
+      .filter((invoice) => invoice.status === 'Pendente' || invoice.status === 'Atrasado')
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 5);
+    setOpenInvoices(open);
+
+    // --- Paid Invoices Calculation ---
+    const paid = allPaidInvoices
+      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+      .slice(0, 5); 
+    setPaidInvoices(paid);
+    
   }, [initialInvoices]);
 
   return (
@@ -368,7 +422,7 @@ export default function DashboardPage() {
       </h2>
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="border-0 bg-gradient-to-br from-red-500 to-orange-500 text-white">
+          <Card className="border-0 bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Receita Mensal
@@ -563,82 +617,71 @@ export default function DashboardPage() {
           </Card>
         </div>
         <div className="grid gap-4">
-          <Card>
+          <Card className="col-span-full">
             <CardHeader>
-              <CardTitle>Faturas Pendentes</CardTitle>
-              <CardDescription>Faturas aguardando pagamento.</CardDescription>
+              <CardTitle>Visão Geral das Faturas</CardTitle>
+              <CardDescription>
+                Análise de saídas, faturas em aberto e faturas pagas.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pendingInvoices.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-12 items-center gap-4 text-xs font-medium text-muted-foreground border-b pb-2">
-                      <div className="col-span-3">Produto</div>
-                      <div className="col-span-2">Parcela</div>
-                      <div className="col-span-2">Valor</div>
-                      <div className="col-span-2">Status</div>
-                      <div className="col-span-3 text-right">
-                        Vencimento
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      {pendingInvoices.map((invoice) => (
-                        <div
-                          className="grid grid-cols-12 items-center gap-4"
-                          key={invoice.invoice}
-                        >
-                          <p className="col-span-3 text-sm font-medium leading-none truncate">
-                            {invoice.clientName}
-                          </p>
-                          <p className="col-span-2 text-sm text-muted-foreground truncate">
-                            {invoice.parcela || 'N/A'}
-                          </p>
-                          <p className="col-span-2 text-sm text-muted-foreground truncate">
-                            {invoice.amount}
-                          </p>
-                          <div className="col-span-2 font-medium">
-                            <Badge
-                              variant={'secondary'}
-                              className={cn(
-                                'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
-                                'border-none'
-                              )}
-                            >
-                              {invoice.status}
-                            </Badge>
-                          </div>
-                          <p className="col-span-3 text-sm text-muted-foreground truncate text-right">
-                            {(() => {
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-
-                              const dueDate = parseISO(invoice.dueDate);
-                              const dueDateMidnight = new Date(dueDate);
-                              dueDateMidnight.setHours(0, 0, 0, 0);
-
-                              const daysDiff = differenceInDays(
-                                dueDateMidnight,
-                                today
-                              );
-
-                              if (daysDiff < 0) {
-                                return `Vencido há ${-daysDiff} dia(s)`;
-                              }
-                              if (daysDiff === 0) {
-                                return 'Vence hoje';
-                              }
-                              return `Faltam ${daysDiff} dia(s)`;
-                            })()}
-                          </p>
+            <CardContent className="grid gap-y-8 gap-x-4 pt-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-col space-y-4">
+                <h3 className="text-base font-semibold">Saídas Mensais (Faturas Pagas)</h3>
+                <OutflowsChart data={outflowsChartData} />
+              </div>
+              <div className="flex flex-col space-y-4">
+                <h3 className="text-base font-semibold">Faturas em Aberto</h3>
+                <div className="space-y-4">
+                  {openInvoices.length > 0 ? (
+                    openInvoices.map((invoice) => (
+                      <div key={invoice.invoice} className="flex items-center">
+                        <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", 
+                          invoice.status === 'Pendente' ? 'bg-amber-500/20' : 'bg-red-500/20'
+                        )}>
+                          {invoice.status === 'Pendente' ? (
+                             <Clock className="h-4 w-4 text-amber-500" />
+                          ) : (
+                             <AlertCircle className="h-4 w-4 text-red-500" />
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma fatura pendente.
-                  </p>
-                )}
+                        <div className="ml-4 space-y-1">
+                          <p className="text-sm font-medium leading-none">{invoice.clientName}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.amount}</p>
+                        </div>
+                        <div className="ml-auto text-right">
+                           <p className="text-sm font-medium">{invoice.status}</p>
+                           <p className="text-sm text-muted-foreground">{format(parseISO(invoice.dueDate), 'dd/MM/yy')}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground pt-4">Nenhuma fatura em aberto.</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col space-y-4">
+                <h3 className="text-base font-semibold">Últimas Faturas Pagas</h3>
+                 <div className="space-y-4">
+                  {paidInvoices.length > 0 ? (
+                    paidInvoices.map((invoice) => (
+                      <div key={invoice.invoice} className="flex items-center">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/20">
+                          <DollarSign className="h-4 w-4 text-green-500" />
+                        </div>
+                        <div className="ml-4 space-y-1">
+                          <p className="text-sm font-medium leading-none">{invoice.clientName}</p>
+                          <p className="text-sm text-muted-foreground">{invoice.amount}</p>
+                        </div>
+                        <div className="ml-auto text-right">
+                           <p className="text-sm font-medium">Pago</p>
+                           <p className="text-sm text-muted-foreground">{format(parseISO(invoice.dueDate), 'dd/MM/yy')}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground pt-4">Nenhuma fatura paga recentemente.</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
