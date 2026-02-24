@@ -367,19 +367,19 @@ export default function DashboardPage() {
         Painel
       </h2>
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="border-0 bg-gradient-to-br from-red-500 to-orange-500 text-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 Receita Mensal
               </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-white/80" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 R$ {totalRevenue.toFixed(2).replace('.', ',')}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/80">
                 {revenueChange >= 0 ? '+' : ''}
                 {revenueChange.toFixed(1).replace('.', ',')}% do mês passado
               </p>
@@ -414,6 +414,8 @@ export default function DashboardPage() {
               </p>
             </CardContent>
           </Card>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
