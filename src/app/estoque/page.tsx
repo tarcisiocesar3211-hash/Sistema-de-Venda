@@ -306,7 +306,7 @@ export default function EstoquePage() {
     );
     setDocumentNonBlocking(accountRef, { status: 'Vendido' }, { merge: true });
 
-    const textToCopy = `E-mail: ${accountToWithdraw.email} - Senha: ${accountToWithdraw.senha} - Tela: ${accountToWithdraw.tela} - Pin: ${accountToWithdraw.pin}`;
+    const textToCopy = `🔴*${accountToWithdraw.categoria}*🔴\n\n> *ACESSO:* ${accountToWithdraw.email}\n> *SENHA:* ${accountToWithdraw.senha}\n> *PERFIL PRIVADO:* ${accountToWithdraw.tela}\n> *PIN PRIVADO:* ${accountToWithdraw.pin}\n\n🚨 *Proibido altera senha da conta ou dos perfis* 🚨`;
     navigator.clipboard.writeText(textToCopy).then(() => {
       toast({
         title: 'Mensagem de Entrega Gerada!',
@@ -451,6 +451,23 @@ export default function EstoquePage() {
         .map(([service, _]) => service);
   }, [accounts]);
 
+  const handleCopyEmails = () => {
+    if (selectedAccounts.length === 0 || !accounts) return;
+
+    const emailsToCopy = accounts
+      .filter((acc) => selectedAccounts.includes(acc.id))
+      .map((acc) => acc.email)
+      .join(', ');
+
+    navigator.clipboard.writeText(emailsToCopy).then(() => {
+      toast({
+        title: 'E-mails copiados!',
+        description:
+          'Os e-mails das contas selecionadas foram copiados para a área de transferência.',
+      });
+    });
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div>
@@ -477,6 +494,12 @@ export default function EstoquePage() {
               <Button variant="outline" className="border-amber-500/50 text-amber-600" disabled><History className="mr-2 h-4 w-4"/> Limpar Histórico</Button>
           </div>
           <div className="flex items-center gap-2">
+            {selectedAccounts.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {selectedAccounts.length}{' '}
+                {selectedAccounts.length === 1 ? 'selecionado' : 'selecionados'}
+              </span>
+            )}
               <Button 
                 variant="outline"
                 className="border-destructive text-destructive hover:text-destructive hover:bg-destructive/10" 
@@ -671,7 +694,7 @@ export default function EstoquePage() {
                   </TableCell>
                   <TableCell>{account.observacao}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleCopyAccount(account)}><Copy className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleCopyAccount(account)}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
                     <Button variant="ghost" size="icon" onClick={() => { setEditingAccount(account); setIsEditSheetOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => setDeletionTarget(account.id)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
@@ -762,7 +785,3 @@ export default function EstoquePage() {
     </div>
   );
 }
-
-    
-
-    
