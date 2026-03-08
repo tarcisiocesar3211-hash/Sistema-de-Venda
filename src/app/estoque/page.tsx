@@ -27,6 +27,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -54,6 +63,7 @@ import {
   BarChart,
   History,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -156,6 +166,10 @@ export default function EstoquePage() {
   const [editedStatus, setEditedStatus] = useState<Status>('Estoque');
   const [editedObservacao, setEditedObservacao] = useState('');
 
+  // State for withdraw access modal
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [selectedServiceForWithdraw, setSelectedServiceForWithdraw] = useState('');
+
   const handleSearch = () => {
     setSearchQuery(searchInput);
   };
@@ -253,6 +267,57 @@ export default function EstoquePage() {
     setIsEditSheetOpen(false);
     setEditingAccount(null);
   };
+  
+  const handleGenerateDeliveryMessage = () => {
+    if (!selectedServiceForWithdraw || !accounts || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro!',
+        description: 'Por favor, selecione um serviço.',
+      });
+      return;
+    }
+
+    const availableAccounts = accounts
+      .filter(
+        (acc) =>
+          acc.categoria === selectedServiceForWithdraw &&
+          (acc.status === 'Disponivel' || acc.status === 'Estoque')
+      )
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    if (availableAccounts.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Fora de estoque!',
+        description: `Nenhuma conta disponível ou em estoque para ${selectedServiceForWithdraw}.`,
+      });
+      return;
+    }
+
+    const accountToWithdraw = availableAccounts[0];
+
+    const accountRef = doc(
+      firestore,
+      'users',
+      SHARED_USER_ID,
+      'accounts',
+      accountToWithdraw.id
+    );
+    setDocumentNonBlocking(accountRef, { status: 'Vendido' }, { merge: true });
+
+    const textToCopy = `E-mail: ${accountToWithdraw.email} - Senha: ${accountToWithdraw.senha} - Tela: ${accountToWithdraw.tela} - Pin: ${accountToWithdraw.pin}`;
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Mensagem de Entrega Gerada!',
+        description: 'Os dados da conta foram copiados e o status atualizado para "Vendido".',
+      });
+    });
+
+    setIsWithdrawModalOpen(false);
+    setSelectedServiceForWithdraw('');
+  };
+
 
   const handleCopyAccount = (account: Account) => {
     const textToCopy = `E-mail: ${account.email} - Senha: ${account.senha} - Tela: ${account.tela} - Pin: ${account.pin}`;
@@ -276,9 +341,10 @@ export default function EstoquePage() {
   const searchedAccounts = useMemo(() => {
     if (!accounts) return [];
     return searchQuery
-      ? accounts.filter((acc) =>
-          acc.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          acc.categoria.toLowerCase().includes(searchQuery.toLowerCase())
+      ? accounts.filter(
+          (acc) =>
+            acc.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            acc.categoria.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : accounts;
   }, [accounts, searchQuery]);
@@ -364,35 +430,6 @@ export default function EstoquePage() {
         });
     });
   };
-
-  const handleWithdrawAccess = () => {
-    if (selectedAccounts.length === 0 || !firestore || !accounts) return;
-
-    const batch = writeBatch(firestore);
-    const accountsToWithdraw = selectedAccounts.map(id => accounts.find(acc => acc.id === id)).filter(Boolean);
-
-    accountsToWithdraw.forEach(account => {
-      if (account && (account.status === 'Disponivel' || account.status === 'Estoque')) {
-        const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', account.id);
-        batch.update(accountRef, { status: 'Vendido' });
-      }
-    });
-
-    batch.commit().then(() => {
-      setSelectedAccounts([]);
-      toast({
-        title: 'Acesso retirado!',
-        description: 'As contas selecionadas foram marcadas como "Vendido".'
-      });
-    }).catch(error => {
-      console.error("Error withdrawing access: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro!',
-        description: 'Não foi possível retirar o acesso das contas selecionadas.',
-      });
-    });
-  };
   
   const servicesWithoutStock = useMemo(() => {
     if (!accounts) return [];
@@ -447,9 +484,52 @@ export default function EstoquePage() {
                 disabled={selectedAccounts.length === 0}>
                 <Trash2 className="mr-2 h-4 w-4"/> Limpar Tudo
               </Button>
-              <Button variant="outline" onClick={handleWithdrawAccess} disabled={selectedAccounts.length === 0}>
-                <PlusCircle className="mr-2 h-4 w-4"/> Retirar Acesso
-              </Button>
+               <Dialog open={isWithdrawModalOpen} onOpenChange={setIsWithdrawModalOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline">
+                       Retirar Acesso
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Retirar Acesso</DialogTitle>
+                        <DialogDescription>
+                            Pega automaticamente a conta disponível mais antiga.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="withdraw-service">Selecione o Serviço</Label>
+                            <Select value={selectedServiceForWithdraw} onValueChange={setSelectedServiceForWithdraw}>
+                                <SelectTrigger id="withdraw-service">
+                                    <SelectValue placeholder="Escolha..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="withdraw-purpose">Finalidade</Label>
+                            <Select defaultValue="Venda Nova">
+                                <SelectTrigger id="withdraw-purpose">
+                                    <SelectValue placeholder="Selecione a finalidade" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Venda Nova">Venda Nova</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsWithdrawModalOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleGenerateDeliveryMessage}>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Gerar Mensagem de Entrega
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
               <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
                 <SheetTrigger asChild>
                   <Button variant="destructive">
@@ -682,5 +762,7 @@ export default function EstoquePage() {
     </div>
   );
 }
+
+    
 
     
