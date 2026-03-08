@@ -389,7 +389,21 @@ export default function EstoquePage() {
 
 
   const handleCopyAccount = (account: Account) => {
-    const textToCopy = `E-mail: ${account.email} - Senha: ${account.senha} - Tela: ${account.tela} - Pin: ${account.pin}`;
+    let textToCopy = `E-mail: ${account.email} - Senha: ${account.senha} - Tela: ${account.tela} - Pin: ${account.pin}`;
+
+    if (selectedStatusTab === 'Caida') {
+        textToCopy = [
+          `Categoria: ${account.categoria}`,
+          `E-mail: ${account.email}`,
+          `Senha: ${account.senha}`,
+          `Tela: ${account.tela || 'N/A'}`,
+          `PIN: ${account.pin || 'N/A'}`,
+          `Remetente: ${account.remetente || 'N/A'}`,
+          `Status: ${account.status}`,
+          `Observação: ${account.observacao || 'N/A'}`,
+        ].join('\n');
+    }
+    
     navigator.clipboard.writeText(textToCopy).then(() => {
       toast({
         title: 'Copiado!',
@@ -950,7 +964,10 @@ export default function EstoquePage() {
                   </TableCell>
                   <TableCell>{account.observacao}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleCopyAccount(account)}><Copy className="mr-2 h-4 w-4" />Copiar</Button>
+                    <Button variant="ghost" onClick={() => handleCopyAccount(account)}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      {selectedStatusTab === 'Caida' ? 'Copiar Tudo' : 'Copiar'}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => { setEditingAccount(account); setIsEditSheetOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => setDeletionTarget(account.id)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
