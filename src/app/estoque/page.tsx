@@ -401,9 +401,10 @@ export default function EstoquePage() {
   }, [accounts, searchQuery]);
 
   const tabCounts = useMemo(() => {
-    if (!searchedAccounts) return { todos: 0, disponiveis: 0, vendidos: 0, caida: 0 };
+    if (!searchedAccounts) return { todos: 0, estoque: 0, disponiveis: 0, vendidos: 0, caida: 0 };
     return {
       todos: searchedAccounts.length,
+      estoque: searchedAccounts.filter(a => a.status === 'Estoque').length,
       disponiveis: searchedAccounts.filter(a => a.status === 'Disponivel').length,
       vendidos: searchedAccounts.filter(a => a.status === 'Vendido').length,
       caida: searchedAccounts.filter(a => a.status === 'Caida' || a.status === 'Pagamento').length,
@@ -415,6 +416,9 @@ export default function EstoquePage() {
 
     let currentAccounts;
     switch(selectedStatusTab) {
+        case 'Estoque':
+            currentAccounts = searchedAccounts.filter(acc => acc.status === 'Estoque');
+            break;
         case 'Disponiveis':
             currentAccounts = searchedAccounts.filter(acc => acc.status === 'Disponivel');
             break;
@@ -813,6 +817,7 @@ export default function EstoquePage() {
         <Tabs value={selectedStatusTab} onValueChange={setSelectedStatusTab}>
             <TabsList>
                 <TabsTrigger value="Todos">Todos ({tabCounts.todos})</TabsTrigger>
+                <TabsTrigger value="Estoque">Estoque ({tabCounts.estoque})</TabsTrigger>
                 <TabsTrigger value="Disponiveis">Disponíveis ({tabCounts.disponiveis})</TabsTrigger>
                 <TabsTrigger value="Vendidos">Vendidos ({tabCounts.vendidos})</TabsTrigger>
                 <TabsTrigger value="Caida">Caída ({tabCounts.caida})</TabsTrigger>
