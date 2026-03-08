@@ -36,6 +36,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle as CardTitleUI } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -168,6 +177,7 @@ export default function EstoquePage() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
 
 
   // Form states for adding
@@ -197,6 +207,14 @@ export default function EstoquePage() {
   const [selectedServiceForWithdraw, setSelectedServiceForWithdraw] = useState('');
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+
+  const handleCategoryFilterChange = (category: string) => {
+    setCategoryFilter((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  };
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
@@ -391,14 +409,24 @@ export default function EstoquePage() {
   
   const searchedAccounts = useMemo(() => {
     if (!accounts) return [];
-    return searchQuery
-      ? accounts.filter(
+    
+    let filteredAccounts = accounts;
+
+    if (searchQuery) {
+        filteredAccounts = filteredAccounts.filter(
           (acc) =>
             acc.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
             acc.categoria.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : accounts;
-  }, [accounts, searchQuery]);
+        );
+    }
+    
+    if (categoryFilter.length > 0) {
+        filteredAccounts = filteredAccounts.filter(acc => categoryFilter.includes(acc.categoria));
+    }
+
+    return filteredAccounts;
+
+  }, [accounts, searchQuery, categoryFilter]);
 
   const tabCounts = useMemo(() => {
     if (!searchedAccounts) return { todos: 0, estoque: 0, disponiveis: 0, vendidos: 0, caida: 0 };
@@ -677,7 +705,43 @@ export default function EstoquePage() {
       <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" disabled><ArrowRightLeft /></Button>
-              <Button variant="outline" size="icon" disabled><ListFilter /></Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={categoryFilter.length > 0 ? 'secondary' : 'outline'}
+                    size="icon"
+                    className="relative"
+                  >
+                    <ListFilter />
+                    {categoryFilter.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                        {categoryFilter.length}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filtrar por Categoria</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {categories.map((category) => (
+                    <DropdownMenuCheckboxItem
+                      key={category}
+                      checked={categoryFilter.includes(category)}
+                      onCheckedChange={() => handleCategoryFilterChange(category)}
+                    >
+                      {category}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  {categoryFilter.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setCategoryFilter([])}>
+                        Limpar Filtros
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" onClick={() => setIsSummaryModalOpen(true)}><BarChart className="mr-2 h-4 w-4"/> Quantidade</Button>
               <Button variant="outline" className="border-amber-500/50 text-amber-600" disabled><History className="mr-2 h-4 w-4"/> Limpar Histórico</Button>
           </div>
