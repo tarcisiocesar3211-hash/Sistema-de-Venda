@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle as CardTitleUI } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,7 @@ import {
   History,
   AlertTriangle,
   Sparkles,
+  Archive
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,6 +78,7 @@ import {
 } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
 
 const statuses = ['Disponivel', 'Vendido', 'Estoque', 'Caida', 'Pagamento'] as const;
 type Status = (typeof statuses)[number];
@@ -169,6 +172,7 @@ export default function EstoquePage() {
   // State for withdraw access modal
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedServiceForWithdraw, setSelectedServiceForWithdraw] = useState('');
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
@@ -468,6 +472,135 @@ export default function EstoquePage() {
     });
   };
 
+  const stockSummaryData = useMemo(() => {
+    if (!accounts) return [];
+
+    const stockCounts = categories.reduce((acc, cat) => {
+        acc[cat] = 0;
+        return acc;
+    }, {} as Record<string, number>);
+
+    accounts.forEach(acc => {
+        if ((acc.status === 'Disponivel' || acc.status === 'Estoque') && stockCounts.hasOwnProperty(acc.categoria)) {
+            stockCounts[acc.categoria]++;
+        }
+    });
+
+    const colors = [
+        'hsl(var(--chart-1))', '#82ca9d', '#ffc658', 'hsl(var(--chart-2))',
+        '#a4de6c', '#d0ed57', '#ffc658', '#ff8042',
+        'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'
+    ];
+
+    return Object.entries(stockCounts)
+        .filter(([, count]) => count > 0)
+        .map(([name, value], index) => ({
+            name,
+            value,
+            color: colors[index % colors.length],
+        }));
+  }, [accounts]);
+
+
+  const StockSummaryModal = ({
+    isOpen,
+    onClose,
+    data,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    data: { name: string; value: number; color: string }[];
+  }) => {
+    const totalStock = data.reduce((acc, item) => acc + item.value, 0);
+
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md md:max-w-2xl bg-card">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+                <Archive className="h-6 w-6 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-bold">Resumo do Estoque</DialogTitle>
+                <DialogDescription>
+                  Análise detalhada de assinaturas disponíveis por serviço.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            {totalStock > 0 ? (
+              <>
+                <div className="flex justify-center items-center h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={80}
+                        innerRadius={60}
+                        fill="#8884d8"
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        iconType="circle"
+                        layout="vertical"
+                        verticalAlign="middle"
+                        align="right"
+                        formatter={(value) => <span className="text-foreground/80">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <Card className="bg-destructive/10 border-destructive/20 text-center">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium text-destructive/80">TOTAL EM ESTOQUE</p>
+                    <p className="text-5xl font-bold text-destructive">{totalStock}</p>
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {data.map((item) => (
+                    <Card key={item.name} className="p-4 shadow-sm text-center">
+                      <CardHeader className="p-0 flex-row items-center justify-center gap-2">
+                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }}/>
+                        <CardTitleUI className="text-sm font-medium">{item.name}</CardTitleUI>
+                      </CardHeader>
+                      <CardContent className="p-0 pt-2">
+                        <p className="text-3xl font-bold">{item.value}</p>
+                        <p className="text-xs text-muted-foreground">DISPONÍVEIS</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-10">
+                <p className="text-lg font-semibold">Nenhum item em estoque</p>
+                <p className="text-muted-foreground">Adicione contas para ver o resumo.</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={onClose} variant="destructive" className="w-full">
+              Fechar Resumo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div>
@@ -490,7 +623,7 @@ export default function EstoquePage() {
           <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" disabled><ArrowRightLeft /></Button>
               <Button variant="outline" size="icon" disabled><ListFilter /></Button>
-              <Button variant="outline" disabled><BarChart className="mr-2 h-4 w-4"/> Quantidade</Button>
+              <Button variant="outline" onClick={() => setIsSummaryModalOpen(true)}><BarChart className="mr-2 h-4 w-4"/> Quantidade</Button>
               <Button variant="outline" className="border-amber-500/50 text-amber-600" disabled><History className="mr-2 h-4 w-4"/> Limpar Histórico</Button>
           </div>
           <div className="flex items-center gap-2">
@@ -782,6 +915,7 @@ export default function EstoquePage() {
           </div>
         </SheetContent>
       </Sheet>
+      <StockSummaryModal isOpen={isSummaryModalOpen} onClose={() => setIsSummaryModalOpen(false)} data={stockSummaryData} />
     </div>
   );
 }
