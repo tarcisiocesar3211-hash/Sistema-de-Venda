@@ -337,7 +337,7 @@ export default function EstoquePage() {
       .filter(
         (acc) =>
           acc.categoria === selectedServiceForWithdraw &&
-          (acc.status === 'Disponivel' || acc.status === 'Estoque')
+          acc.status === 'Estoque'
       )
       .sort((a, b) => a.id.localeCompare(b.id));
 
@@ -345,7 +345,7 @@ export default function EstoquePage() {
       toast({
         variant: 'destructive',
         title: 'Fora de estoque!',
-        description: `Nenhuma conta disponível ou em estoque para ${selectedServiceForWithdraw}.`,
+        description: `Nenhuma conta em estoque para ${selectedServiceForWithdraw}.`,
       });
       return;
     }
@@ -432,7 +432,8 @@ export default function EstoquePage() {
         filteredAccounts = filteredAccounts.filter(
           (acc) =>
             acc.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            acc.categoria.toLowerCase().includes(searchQuery.toLowerCase())
+            acc.categoria.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            acc.email.toLowerCase().endsWith(searchQuery.toLowerCase())
         );
     }
     
@@ -542,7 +543,7 @@ export default function EstoquePage() {
     }, {} as Record<string, number>);
 
     accounts.forEach(acc => {
-        if (acc.status === 'Disponivel' || acc.status === 'Estoque') {
+        if (acc.status === 'Estoque') {
             if (stockCounts.hasOwnProperty(acc.categoria)) {
                 stockCounts[acc.categoria]++;
             }
@@ -580,7 +581,7 @@ export default function EstoquePage() {
     }, {} as Record<string, number>);
 
     accounts.forEach(acc => {
-        if ((acc.status === 'Disponivel' || acc.status === 'Estoque') && stockCounts.hasOwnProperty(acc.categoria)) {
+        if (acc.status === 'Estoque' && stockCounts.hasOwnProperty(acc.categoria)) {
             stockCounts[acc.categoria]++;
         }
     });
@@ -623,7 +624,7 @@ export default function EstoquePage() {
               <div>
                 <DialogTitle className="text-xl font-bold">Resumo do Estoque</DialogTitle>
                 <DialogDescription>
-                  Análise detalhada de assinaturas disponíveis por serviço.
+                  Análise detalhada de assinaturas em estoque por serviço.
                 </DialogDescription>
               </div>
             </div>
@@ -676,7 +677,7 @@ export default function EstoquePage() {
                       </CardHeader>
                       <CardContent className="p-0 pt-2">
                         <p className="text-3xl font-bold">{item.value}</p>
-                        <p className="text-xs text-muted-foreground">DISPONÍVEIS</p>
+                        <p className="text-xs text-muted-foreground">EM ESTOQUE</p>
                       </CardContent>
                     </Card>
                   ))}
