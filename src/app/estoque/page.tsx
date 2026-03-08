@@ -401,11 +401,12 @@ export default function EstoquePage() {
   }, [accounts, searchQuery]);
 
   const tabCounts = useMemo(() => {
-    if (!searchedAccounts) return { todos: 0, disponiveis: 0, vendidos: 0 };
+    if (!searchedAccounts) return { todos: 0, disponiveis: 0, vendidos: 0, caida: 0 };
     return {
       todos: searchedAccounts.length,
       disponiveis: searchedAccounts.filter(a => a.status === 'Disponivel').length,
       vendidos: searchedAccounts.filter(a => a.status === 'Vendido').length,
+      caida: searchedAccounts.filter(a => a.status === 'Caida' || a.status === 'Pagamento').length,
     }
   }, [searchedAccounts]);
 
@@ -419,6 +420,9 @@ export default function EstoquePage() {
             break;
         case 'Vendidos':
             currentAccounts = searchedAccounts.filter(acc => acc.status === 'Vendido');
+            break;
+        case 'Caida':
+            currentAccounts = searchedAccounts.filter(acc => acc.status === 'Caida' || acc.status === 'Pagamento');
             break;
         default:
             currentAccounts = searchedAccounts;
@@ -811,6 +815,7 @@ export default function EstoquePage() {
                 <TabsTrigger value="Todos">Todos ({tabCounts.todos})</TabsTrigger>
                 <TabsTrigger value="Disponiveis">Disponíveis ({tabCounts.disponiveis})</TabsTrigger>
                 <TabsTrigger value="Vendidos">Vendidos ({tabCounts.vendidos})</TabsTrigger>
+                <TabsTrigger value="Caida">Caída ({tabCounts.caida})</TabsTrigger>
             </TabsList>
         </Tabs>
         <Button variant="outline" onClick={() => setIsHistoryModalOpen(true)}>
