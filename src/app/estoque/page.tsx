@@ -124,7 +124,7 @@ const categories = [
   'Disney',
   'HBO',
   'Spotify',
-  'Globoplay',
+  'Globoplay Premium',
   'Paramount',
   'ClaroTV+',
   'Deezer',
@@ -134,6 +134,8 @@ const categories = [
   'Crunchyroll',
   'Prime Video',
   'Xbox',
+  'Globoplay + Premiere',
+  'Globoplay + Telecine',
 ];
 
 type SortableKey = 'email' | 'senha' | 'tela' | 'pin' | 'remetente' | 'categoria' | 'status' | 'observacao';
