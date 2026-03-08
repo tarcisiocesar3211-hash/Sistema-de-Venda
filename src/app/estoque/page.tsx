@@ -18,12 +18,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -33,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,14 +42,25 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { PlusCircle, Trash2, Pencil, Copy, ArrowUpDown, Search } from 'lucide-react';
+import {
+  PlusCircle,
+  Trash2,
+  Pencil,
+  Copy,
+  ArrowUpDown,
+  Search,
+  ArrowRightLeft,
+  ListFilter,
+  BarChart,
+  History,
+  AlertTriangle,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useFirebase,
   useCollection,
   useMemoFirebase,
-  addDocumentNonBlocking,
   deleteDocumentNonBlocking,
   setDocumentNonBlocking,
 } from '@/firebase';
@@ -113,7 +119,7 @@ export default function EstoquePage() {
   );
   const { data: accounts } = useCollection<Account>(accountsQuery);
 
-  const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [selectedStatusTab, setSelectedStatusTab] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [deletionTarget, setDeletionTarget] = useState<
     string | 'selected' | null
@@ -266,20 +272,41 @@ export default function EstoquePage() {
     }
     setSortConfig({ key, direction });
   };
-
-  const filteredAndSortedAccounts = useMemo(() => {
+  
+  const searchedAccounts = useMemo(() => {
     if (!accounts) return [];
-    
-    let searchedAccounts = searchQuery
+    return searchQuery
       ? accounts.filter((acc) =>
-          acc.email.toLowerCase().includes(searchQuery.toLowerCase())
+          acc.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          acc.categoria.toLowerCase().includes(searchQuery.toLowerCase())
         )
       : accounts;
+  }, [accounts, searchQuery]);
 
-    let currentAccounts =
-      selectedCategory === 'Todos'
-        ? searchedAccounts
-        : searchedAccounts.filter((acc) => acc.categoria === selectedCategory);
+  const tabCounts = useMemo(() => {
+    if (!searchedAccounts) return { todos: 0, disponiveis: 0, vendidos: 0 };
+    return {
+      todos: searchedAccounts.length,
+      disponiveis: searchedAccounts.filter(a => a.status === 'Disponivel').length,
+      vendidos: searchedAccounts.filter(a => a.status === 'Vendido').length,
+    }
+  }, [searchedAccounts]);
+
+  const filteredAndSortedAccounts = useMemo(() => {
+    if (!searchedAccounts) return [];
+
+    let currentAccounts;
+    switch(selectedStatusTab) {
+        case 'Disponiveis':
+            currentAccounts = searchedAccounts.filter(acc => acc.status === 'Disponivel');
+            break;
+        case 'Vendidos':
+            currentAccounts = searchedAccounts.filter(acc => acc.status === 'Vendido');
+            break;
+        default:
+            currentAccounts = searchedAccounts;
+            break;
+    }
 
     const sortableAccounts = [...currentAccounts];
 
@@ -287,17 +314,13 @@ export default function EstoquePage() {
       sortableAccounts.sort((a, b) => {
         const aValue = a[sortConfig.key!] ?? '';
         const bValue = b[sortConfig.key!] ?? '';
-
         const comparison = String(aValue).localeCompare(String(bValue));
-
-        return sortConfig.direction === 'ascending'
-          ? comparison
-          : -comparison;
+        return sortConfig.direction === 'ascending' ? comparison : -comparison;
       });
     }
 
     return sortableAccounts;
-  }, [accounts, selectedCategory, sortConfig, searchQuery]);
+  }, [searchedAccounts, selectedStatusTab, sortConfig]);
 
   const allVisibleSelected = useMemo(() => {
     if (filteredAndSortedAccounts.length === 0) return false;
@@ -315,276 +338,201 @@ export default function EstoquePage() {
       );
     }
   };
-
-  const handleCopySelectedAccounts = () => {
-    if (selectedAccounts.length === 0 || !accounts) return;
-
-    const textToCopy = accounts
-      .filter((acc) => selectedAccounts.includes(acc.id))
-      .map(
-        (account) =>
-          `Categoria: ${account.categoria}\nE-mail: ${account.email}\nSenha: ${
-            account.senha
-          }\nTela: ${account.tela}\nPin: ${account.pin}\nRemetente: ${
-            account.remetente
-          }\nStatus: ${account.status}\nObservação: ${account.observacao || ''}`
-      )
-      .join('\n\n---\n\n');
-
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      toast({
-        title: 'Contas copiadas!',
-        description: 'Os dados das contas selecionadas foram copiados.',
-      });
-    });
-  };
-
-  const handleCopySelectedEmails = () => {
-    if (selectedAccounts.length === 0 || !accounts) return;
-
-    const emailsToCopy = accounts
-      .filter((acc) => selectedAccounts.includes(acc.id))
-      .map((acc) => acc.email)
-      .join(', ');
-
-    navigator.clipboard.writeText(emailsToCopy).then(() => {
-      toast({
-        title: 'E-mails copiados!',
-        description: 'Os e-mails das contas selecionadas foram copiados para a área de transferência.',
-      });
-    });
-  };
-
+  
   const handleDeleteSelectedAccounts = () => {
     if (selectedAccounts.length === 0 || !firestore) return;
 
     const batch = writeBatch(firestore);
     selectedAccounts.forEach((accountId) => {
-      const accountRef = doc(
-        firestore,
-        'users',
-        SHARED_USER_ID,
-        'accounts',
-        accountId
-      );
+      const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', accountId);
       batch.delete(accountRef);
     });
 
-    batch
-      .commit()
-      .then(() => {
+    batch.commit().then(() => {
         setSelectedAccounts([]);
         setDeletionTarget(null);
-      })
-      .catch((error) => {
+        toast({
+            title: 'Contas apagadas!',
+            description: 'As contas selecionadas foram removidas.',
+        })
+    }).catch((error) => {
         console.error('Error deleting selected accounts: ', error);
         toast({
           variant: 'destructive',
           title: 'Erro!',
           description: 'Não foi possível apagar as contas selecionadas.',
         });
-      });
+    });
   };
+
+  const handleWithdrawAccess = () => {
+    if (selectedAccounts.length === 0 || !firestore || !accounts) return;
+
+    const batch = writeBatch(firestore);
+    const accountsToWithdraw = selectedAccounts.map(id => accounts.find(acc => acc.id === id)).filter(Boolean);
+
+    accountsToWithdraw.forEach(account => {
+      if (account && (account.status === 'Disponivel' || account.status === 'Estoque')) {
+        const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', account.id);
+        batch.update(accountRef, { status: 'Vendido' });
+      }
+    });
+
+    batch.commit().then(() => {
+      setSelectedAccounts([]);
+      toast({
+        title: 'Acesso retirado!',
+        description: 'As contas selecionadas foram marcadas como "Vendido".'
+      });
+    }).catch(error => {
+      console.error("Error withdrawing access: ", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro!',
+        description: 'Não foi possível retirar o acesso das contas selecionadas.',
+      });
+    });
+  };
+  
+  const servicesWithoutStock = useMemo(() => {
+    if (!accounts) return [];
+    const stockCounts = categories.reduce((acc, cat) => {
+        acc[cat] = 0;
+        return acc;
+    }, {} as Record<string, number>);
+
+    accounts.forEach(acc => {
+        if (acc.status === 'Disponivel' || acc.status === 'Estoque') {
+            if (stockCounts.hasOwnProperty(acc.categoria)) {
+                stockCounts[acc.categoria]++;
+            }
+        }
+    });
+
+    return Object.entries(stockCounts)
+        .filter(([_, count]) => count === 0)
+        .map(([service, _]) => service);
+  }, [accounts]);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight font-headline">
-          Estoque
-        </h2>
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight font-headline">StreamStock</h2>
+        <p className="text-muted-foreground">Gerencie seu estoque de acessos digitais com segurança.</p>
       </div>
-      <div className="flex items-center justify-between">
-          <div className="flex w-full max-w-sm items-center space-x-2">
-            <div className="relative flex-grow">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por e-mail ou @domínio..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
-                className="pl-8"
-              />
-            </div>
-            <Button onClick={handleSearch}>Procurar</Button>
+      
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar e-mail, CPF ou serviço..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          className="pl-10 h-12"
+        />
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" disabled><ArrowRightLeft /></Button>
+              <Button variant="outline" size="icon" disabled><ListFilter /></Button>
+              <Button variant="outline" disabled><BarChart className="mr-2 h-4 w-4"/> Quantidade</Button>
+              <Button variant="outline" className="border-amber-500/50 text-amber-600" disabled><History className="mr-2 h-4 w-4"/> Limpar Histórico</Button>
           </div>
-        <div className="flex items-center space-x-2">
-          {selectedAccounts.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {selectedAccounts.length}{' '}
-              {selectedAccounts.length === 1 ? 'selecionada' : 'selecionadas'}
-            </span>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={selectedAccounts.length === 0}>
-                Ações em Massa
+          <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                className="border-destructive text-destructive hover:text-destructive hover:bg-destructive/10" 
+                onClick={() => setDeletionTarget('selected')} 
+                disabled={selectedAccounts.length === 0}>
+                <Trash2 className="mr-2 h-4 w-4"/> Limpar Tudo
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleCopySelectedAccounts}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copiar Selecionadas
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopySelectedEmails}>
-                <Copy className="mr-2 h-4 w-4" />
-                Copiar E-mails
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeletionTarget('selected')}
-                className="text-red-500 hover:text-red-500 focus:text-red-500"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Apagar Selecionadas
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button variant="outline" onClick={handleWithdrawAccess} disabled={selectedAccounts.length === 0}>
+                <PlusCircle className="mr-2 h-4 w-4"/> Retirar Acesso
+              </Button>
+              <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="destructive">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Estoque
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Adicionar nova conta</SheetTitle>
+                    <SheetDescription>
+                      Preencha os dados para adicionar uma nova conta ao estoque.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="categoria" className="text-right">Categoria</Label>
+                      <Select value={newCategoria} onValueChange={setNewCategoria}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+                        <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="status" className="text-right">Status</Label>
+                      <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Status)}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione um status" /></SelectTrigger>
+                        <SelectContent>{statuses.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="email" className="text-right">E-mail</Label>
+                      <Input id="email" placeholder="email@exemplo.com" className="col-span-3" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="senha" className="text-right">Senha</Label>
+                      <Input id="senha" placeholder="Sua senha" className="col-span-3" value={newSenha} onChange={(e) => setNewSenha(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="tela" className="text-right">Tela</Label>
+                      <Input id="tela" placeholder="Ex: Perfil 1" className="col-span-3" value={newTela} onChange={(e) => setNewTela(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="pin" className="text-right">PIN</Label>
+                      <Input id="pin" placeholder="Ex: 1234" className="col-span-3" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="remetente" className="text-right">Remetente</Label>
+                      <Input id="remetente" placeholder="Nome do remetente" className="col-span-3" value={newRemetente} onChange={(e) => setNewRemetente(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="observacao" className="text-right">Observação</Label>
+                      <Textarea id="observacao" placeholder="Qualquer observação" className="col-span-3" value={newObservacao} onChange={(e) => setNewObservacao(e.target.value)} />
+                    </div>
+                    <Button onClick={handleAddAccount} className="w-full">Salvar conta</Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+          </div>
+      </div>
+      
+      {servicesWithoutStock.length > 0 && (
+          <Alert variant="destructive" className="bg-red-500/10 border-red-500/20">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-destructive">Atenção!</AlertTitle>
+              <AlertDescription className="text-destructive">
+                 Serviços SEM ESTOQUE:
+                 <div className="flex flex-wrap gap-1 mt-1">
+                   {servicesWithoutStock.map(service => <Badge key={service} variant="destructive">{service}</Badge>)}
+                 </div>
+              </AlertDescription>
+          </Alert>
+      )}
 
-          <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
-            <SheetTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Conta
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Adicionar nova conta</SheetTitle>
-                <SheetDescription>
-                  Preencha os dados para adicionar uma nova conta ao estoque.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="categoria" className="text-right">
-                    Categoria
-                  </Label>
-                  <Select value={newCategoria} onValueChange={setNewCategoria}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>
-                          {cat}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
-                    Status
-                  </Label>
-                  <Select
-                    value={newStatus}
-                    onValueChange={(value) => setNewStatus(value as Status)}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Selecione um status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statuses.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
-                    E-mail
-                  </Label>
-                  <Input
-                    id="email"
-                    placeholder="email@exemplo.com"
-                    className="col-span-3"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="senha" className="text-right">
-                    Senha
-                  </Label>
-                  <Input
-                    id="senha"
-                    placeholder="Sua senha"
-                    className="col-span-3"
-                    value={newSenha}
-                    onChange={(e) => setNewSenha(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="tela" className="text-right">
-                    Tela
-                  </Label>
-                  <Input
-                    id="tela"
-                    placeholder="Ex: Perfil 1"
-                    className="col-span-3"
-                    value={newTela}
-                    onChange={(e) => setNewTela(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="pin" className="text-right">
-                    PIN
-                  </Label>
-                  <Input
-                    id="pin"
-                    placeholder="Ex: 1234"
-                    className="col-span-3"
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="remetente" className="text-right">
-                    Remetente
-                  </Label>
-                  <Input
-                    id="remetente"
-                    placeholder="Nome do remetente"
-                    className="col-span-3"
-                    value={newRemetente}
-                    onChange={(e) => setNewRemetente(e.target.value)}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="observacao" className="text-right">
-                    Observação
-                  </Label>
-                  <Textarea
-                    id="observacao"
-                    placeholder="Qualquer observação"
-                    className="col-span-3"
-                    value={newObservacao}
-                    onChange={(e) => setNewObservacao(e.target.value)}
-                  />
-                </div>
-                <Button onClick={handleAddAccount} className="w-full">
-                  Salvar conta
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
+      <div className="flex justify-between items-center">
+        <Tabs value={selectedStatusTab} onValueChange={setSelectedStatusTab}>
+            <TabsList>
+                <TabsTrigger value="Todos">Todos ({tabCounts.todos})</TabsTrigger>
+                <TabsTrigger value="Disponiveis">Disponíveis ({tabCounts.disponiveis})</TabsTrigger>
+                <TabsTrigger value="Vendidos">Vendidos ({tabCounts.vendidos})</TabsTrigger>
+            </TabsList>
+        </Tabs>
+        <Button variant="outline" disabled><History className="mr-2 h-4 w-4"/> Histórico</Button>
       </div>
 
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="Todos">Todos</TabsTrigger>
-          {categories.map((cat) => (
-            <TabsTrigger key={cat} value={cat}>
-              {cat}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
 
       <div className="rounded-md border mt-4">
         <Table>
@@ -597,66 +545,21 @@ export default function EstoquePage() {
                   aria-label="Selecionar todos"
                 />
               </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('email')} className="px-0 hover:bg-transparent">
-                  E-mail
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('senha')} className="px-0 hover:bg-transparent">
-                  Senha
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('tela')} className="px-0 hover:bg-transparent">
-                  Tela
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('pin')} className="px-0 hover:bg-transparent">
-                  PIN
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('remetente')} className="px-0 hover:bg-transparent">
-                  Remetente
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('categoria')} className="px-0 hover:bg-transparent">
-                  Categoria
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('status')} className="px-0 hover:bg-transparent">
-                  Status
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort('observacao')} className="px-0 hover:bg-transparent">
-                  Observação
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('email')} className="px-0 hover:bg-transparent">E-mail<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('senha')} className="px-0 hover:bg-transparent">Senha<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('tela')} className="px-0 hover:bg-transparent">Tela<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('pin')} className="px-0 hover:bg-transparent">PIN<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('remetente')} className="px-0 hover:bg-transparent">Remetente<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('categoria')} className="px-0 hover:bg-transparent">Categoria<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('status')} className="px-0 hover:bg-transparent">Status<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
+              <TableHead><Button variant="ghost" onClick={() => handleSort('observacao')} className="px-0 hover:bg-transparent">Observação<ArrowUpDown className="ml-2 h-4 w-4" /></Button></TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSortedAccounts.length > 0 ? (
               filteredAndSortedAccounts.map((account) => (
-                <TableRow
-                  key={account.id}
-                  data-state={
-                    selectedAccounts.includes(account.id) && 'selected'
-                  }
-                >
+                <TableRow key={account.id} data-state={selectedAccounts.includes(account.id) && 'selected'}>
                   <TableCell>
                     <Checkbox
                       checked={selectedAccounts.includes(account.id)}
@@ -664,9 +567,7 @@ export default function EstoquePage() {
                         setSelectedAccounts(
                           checked
                             ? [...selectedAccounts, account.id]
-                            : selectedAccounts.filter(
-                                (id) => id !== account.id
-                              )
+                            : selectedAccounts.filter((id) => id !== account.id)
                         );
                       }}
                       aria-label="Selecionar linha"
@@ -679,81 +580,39 @@ export default function EstoquePage() {
                   <TableCell>{account.remetente}</TableCell>
                   <TableCell>{account.categoria}</TableCell>
                   <TableCell>
-                    <Badge
-                       className={cn(
-                        'border-none',
-                        account.status === 'Disponivel' &&
-                          'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
-                        account.status === 'Vendido' &&
-                          'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
-                        account.status === 'Estoque' &&
-                          'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
-                        account.status === 'Caida' &&
-                          'bg-gray-800 text-gray-100 hover:bg-gray-700 dark:bg-gray-300 dark:text-gray-900',
-                        account.status === 'Pagamento' &&
-                          'bg-blue-500/20 text-blue-700 hover:bg-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
+                    <Badge className={cn('border-none',
+                        account.status === 'Disponivel' && 'bg-green-500/20 text-green-700 hover:bg-green-500/30 dark:bg-green-500/10 dark:text-green-400',
+                        account.status === 'Vendido' && 'bg-red-500/20 text-red-700 hover:bg-red-500/30 dark:bg-red-500/10 dark:text-red-400',
+                        account.status === 'Estoque' && 'bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400',
+                        account.status === 'Caida' && 'bg-gray-800 text-gray-100 hover:bg-gray-700 dark:bg-gray-300 dark:text-gray-900',
+                        account.status === 'Pagamento' && 'bg-blue-500/20 text-blue-700 hover:bg-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400'
                       )}
-                    >
-                      {account.status}
-                    </Badge>
+                    >{account.status}</Badge>
                   </TableCell>
                   <TableCell>{account.observacao}</TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleCopyAccount(account)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setEditingAccount(account);
-                        setIsEditSheetOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeletionTarget(account.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleCopyAccount(account)}><Copy className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingAccount(account); setIsEditSheetOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeletionTarget(account.id)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
-                  Nenhuma conta encontrada.
-                </TableCell>
+                <TableCell colSpan={10} className="h-24 text-center">Nenhuma conta encontrada.</TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
 
-      <AlertDialog
-        open={deletionTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeletionTarget(null);
-          }
-        }}
-      >
+      <AlertDialog open={deletionTarget !== null} onOpenChange={(open) => !open && setDeletionTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não pode ser desfeita. Isso irá apagar permanentemente{' '}
-              {deletionTarget === 'selected'
-                ? 'as contas selecionadas'
-                : 'esta conta'}
-              .
+              {deletionTarget === 'selected' ? 'as contas selecionadas' : 'esta conta'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -767,9 +626,7 @@ export default function EstoquePage() {
                   handleRemoveAccount(deletionTarget as string);
                 }
               }}
-            >
-              Apagar
-            </AlertDialogAction>
+            >Apagar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -781,123 +638,49 @@ export default function EstoquePage() {
           </SheetHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-categoria" className="text-right">
-                Categoria
-              </Label>
-              <Select
-                value={editedCategoria}
-                onValueChange={setEditedCategoria}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Label htmlFor="edit-categoria" className="text-right">Categoria</Label>
+              <Select value={editedCategoria} onValueChange={setEditedCategoria}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
+                <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-status" className="text-right">
-                Status
-              </Label>
-              <Select
-                value={editedStatus}
-                onValueChange={(value) => setEditedStatus(value as Status)}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecione um status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Label htmlFor="edit-status" className="text-right">Status</Label>
+              <Select value={editedStatus} onValueChange={(value) => setEditedStatus(value as Status)}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione um status" /></SelectTrigger>
+                <SelectContent>{statuses.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-email" className="text-right">
-                E-mail
-              </Label>
-              <Input
-                id="edit-email"
-                placeholder="email@exemplo.com"
-                className="col-span-3"
-                value={editedEmail}
-                onChange={(e) => setEditedEmail(e.target.value)}
-              />
+              <Label htmlFor="edit-email" className="text-right">E-mail</Label>
+              <Input id="edit-email" placeholder="email@exemplo.com" className="col-span-3" value={editedEmail} onChange={(e) => setEditedEmail(e.target.value)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-senha" className="text-right">
-                Senha
-              </Label>
-              <Input
-                id="edit-senha"
-                placeholder="Sua senha"
-                className="col-span-3"
-                value={editedSenha}
-                onChange={(e) => setEditedSenha(e.target.value)}
-              />
+              <Label htmlFor="edit-senha" className="text-right">Senha</Label>
+              <Input id="edit-senha" placeholder="Sua senha" className="col-span-3" value={editedSenha} onChange={(e) => setEditedSenha(e.target.value)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-tela" className="text-right">
-                Tela
-              </Label>
-              <Input
-                id="edit-tela"
-                placeholder="Ex: Perfil 1"
-                className="col-span-3"
-                value={editedTela}
-                onChange={(e) => setEditedTela(e.target.value)}
-              />
+              <Label htmlFor="edit-tela" className="text-right">Tela</Label>
+              <Input id="edit-tela" placeholder="Ex: Perfil 1" className="col-span-3" value={editedTela} onChange={(e) => setEditedTela(e.target.value)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-pin" className="text-right">
-                PIN
-              </Label>
-              <Input
-                id="edit-pin"
-                placeholder="Ex: 1234"
-                className="col-span-3"
-                value={editedPin}
-                onChange={(e) => setEditedPin(e.target.value)}
-              />
+              <Label htmlFor="edit-pin" className="text-right">PIN</Label>
+              <Input id="edit-pin" placeholder="Ex: 1234" className="col-span-3" value={editedPin} onChange={(e) => setEditedPin(e.target.value)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-remetente" className="text-right">
-                Remetente
-              </Label>
-              <Input
-                id="edit-remetente"
-                placeholder="Nome do remetente"
-                className="col-span-3"
-                value={editedRemetente}
-                onChange={(e) => setEditedRemetente(e.target.value)}
-              />
+              <Label htmlFor="edit-remetente" className="text-right">Remetente</Label>
+              <Input id="edit-remetente" placeholder="Nome do remetente" className="col-span-3" value={editedRemetente} onChange={(e) => setEditedRemetente(e.target.value)} />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-observacao" className="text-right">
-                Observação
-              </Label>
-              <Textarea
-                id="edit-observacao"
-                placeholder="Qualquer observação"
-                className="col-span-3"
-                value={editedObservacao}
-                onChange={(e) => setEditedObservacao(e.target.value)}
-              />
+              <Label htmlFor="edit-observacao" className="text-right">Observação</Label>
+              <Textarea id="edit-observacao" placeholder="Qualquer observação" className="col-span-3" value={editedObservacao} onChange={(e) => setEditedObservacao(e.target.value)} />
             </div>
-            <Button onClick={handleUpdateAccount} className="w-full">
-              Salvar alterações
-            </Button>
+            <Button onClick={handleUpdateAccount} className="w-full">Salvar alterações</Button>
           </div>
         </SheetContent>
       </Sheet>
     </div>
   );
 }
+
+    
