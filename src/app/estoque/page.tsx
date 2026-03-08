@@ -65,7 +65,9 @@ import {
   History,
   AlertTriangle,
   Sparkles,
-  Archive
+  Archive,
+  Clock,
+  CalendarDays,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -79,6 +81,8 @@ import {
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { SHARED_USER_ID } from '@/lib/shared-user';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
+import { format, parseISO } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const statuses = ['Disponivel', 'Vendido', 'Estoque', 'Caida', 'Pagamento'] as const;
 type Status = (typeof statuses)[number];
@@ -94,6 +98,16 @@ type Account = {
   categoria: string;
   status: Status;
   observacao?: string;
+};
+
+type Withdrawal = {
+  id: string;
+  ownerId: string;
+  accountId: string;
+  accountEmail: string;
+  categoria: string;
+  generatedMessage: string;
+  withdrawnAt: string;
 };
 
 const categories = [
@@ -131,6 +145,15 @@ export default function EstoquePage() {
     [firestore]
   );
   const { data: accounts } = useCollection<Account>(accountsQuery);
+
+  const withdrawalsQuery = useMemoFirebase(
+    () =>
+      firestore
+        ? collection(firestore, 'users', SHARED_USER_ID, 'withdrawals')
+        : null,
+    [firestore]
+  );
+  const { data: withdrawalsData } = useCollection<Withdrawal>(withdrawalsQuery);
 
   const [selectedStatusTab, setSelectedStatusTab] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -173,10 +196,18 @@ export default function EstoquePage() {
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [selectedServiceForWithdraw, setSelectedServiceForWithdraw] = useState('');
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
   };
+
+  const withdrawals = useMemo(() => {
+    if (!withdrawalsData) return [];
+    return [...withdrawalsData].sort(
+        (a, b) => new Date(b.withdrawnAt).getTime() - new Date(a.withdrawnAt).getTime()
+    );
+  }, [withdrawalsData]);
 
   useEffect(() => {
     if (editingAccount) {
@@ -300,26 +331,42 @@ export default function EstoquePage() {
     }
 
     const accountToWithdraw = availableAccounts[0];
-
-    const accountRef = doc(
-      firestore,
-      'users',
-      SHARED_USER_ID,
-      'accounts',
-      accountToWithdraw.id
-    );
-    setDocumentNonBlocking(accountRef, { status: 'Vendido' }, { merge: true });
-
     const textToCopy = `🔴*${accountToWithdraw.categoria}*🔴\n\n> *ACESSO:* ${accountToWithdraw.email}\n> *SENHA:* ${accountToWithdraw.senha}\n> *PERFIL PRIVADO:* ${accountToWithdraw.tela}\n> *PIN PRIVADO:* ${accountToWithdraw.pin}\n\n🚨 *Proibido altera senha da conta ou dos perfis* 🚨`;
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      toast({
-        title: 'Mensagem de Entrega Gerada!',
-        description: 'Os dados da conta foram copiados e o status atualizado para "Vendido".',
-      });
-    });
 
-    setIsWithdrawModalOpen(false);
-    setSelectedServiceForWithdraw('');
+    const batch = writeBatch(firestore);
+
+    const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', accountToWithdraw.id);
+    batch.update(accountRef, { status: 'Vendido' });
+
+    const withdrawalId = `WTH${Date.now()}`;
+    const newWithdrawal: Omit<Withdrawal, 'id'> = {
+        ownerId: SHARED_USER_ID,
+        accountId: accountToWithdraw.id,
+        accountEmail: accountToWithdraw.email,
+        categoria: accountToWithdraw.categoria,
+        generatedMessage: textToCopy,
+        withdrawnAt: new Date().toISOString(),
+    };
+    const withdrawalRef = doc(firestore, 'users', SHARED_USER_ID, 'withdrawals', withdrawalId);
+    batch.set(withdrawalRef, newWithdrawal);
+
+    batch.commit().then(() => {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            toast({
+                title: 'Mensagem de Entrega Gerada!',
+                description: 'Os dados foram copiados e o histórico de retirada foi criado.',
+            });
+        });
+        setIsWithdrawModalOpen(false);
+        setSelectedServiceForWithdraw('');
+    }).catch(error => {
+        console.error("Error withdrawing account: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro de Retirada',
+            description: 'Ocorreu um erro ao atualizar o status da conta e criar o histórico.',
+        });
+    });
   };
 
 
@@ -766,7 +813,9 @@ export default function EstoquePage() {
                 <TabsTrigger value="Vendidos">Vendidos ({tabCounts.vendidos})</TabsTrigger>
             </TabsList>
         </Tabs>
-        <Button variant="outline" disabled><History className="mr-2 h-4 w-4"/> Histórico</Button>
+        <Button variant="outline" onClick={() => setIsHistoryModalOpen(true)}>
+          <History className="mr-2 h-4 w-4"/> Histórico
+        </Button>
       </div>
 
 
@@ -916,6 +965,73 @@ export default function EstoquePage() {
         </SheetContent>
       </Sheet>
       <StockSummaryModal isOpen={isSummaryModalOpen} onClose={() => setIsSummaryModalOpen(false)} data={stockSummaryData} />
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="sm:max-w-md md:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-destructive" />
+              Histórico de Retiradas
+            </DialogTitle>
+            <DialogDescription>
+              Veja as últimas contas retiradas e as mensagens geradas.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-4 py-4">
+              {withdrawals.length > 0 ? (
+                withdrawals.map((item) => (
+                  <Card key={item.id} className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-bold text-destructive">{item.categoria}</p>
+                        <p className="text-sm text-muted-foreground">{item.accountEmail}</p>
+                      </div>
+                      <div className="text-xs text-muted-foreground text-right">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <CalendarDays className="h-3 w-3" />
+                          <span>{format(parseISO(item.withdrawnAt), 'dd/MM/yy')}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <Clock className="h-3 w-3" />
+                          <span>{format(parseISO(item.withdrawnAt), 'HH:mm')}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                       <Textarea
+                          readOnly
+                          value={item.generatedMessage}
+                          className="bg-muted/50 font-mono text-xs h-40 resize-none"
+                        />
+                         <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() => {
+                                navigator.clipboard.writeText(item.generatedMessage);
+                                toast({ title: 'Mensagem copiada!' });
+                            }}
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copiar Mensagem
+                          </Button>
+                    </div>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma retirada encontrada.
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button onClick={() => setIsHistoryModalOpen(false)} variant="destructive" className="w-full">
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
