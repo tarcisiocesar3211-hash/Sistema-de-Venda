@@ -572,6 +572,32 @@ export default function EstoquePage() {
     });
   };
 
+  const handleCopyAllDataForSelected = () => {
+    if (selectedAccounts.length === 0 || !accounts) return;
+
+    const accountsToCopy = accounts
+      .filter((acc) => selectedAccounts.includes(acc.id));
+    
+    const textToCopy = accountsToCopy.map(account => [
+        `Categoria: ${account.categoria}`,
+        `E-mail: ${account.email}`,
+        `Senha: ${account.senha}`,
+        `Tela: ${account.tela || 'N/A'}`,
+        `PIN: ${account.pin || 'N/A'}`,
+        `Remetente: ${account.remetente || 'N/A'}`,
+        `Status: ${account.status}`,
+        `Observação: ${account.observacao || 'N/A'}`,
+    ].join('\n')).join('\n\n---\n\n');
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast({
+        title: 'Copiado!',
+        description:
+          'Todos os dados das contas selecionadas foram copiados para a área de transferência.',
+      });
+    });
+  };
+
   const stockSummaryData = useMemo(() => {
     if (!accounts) return [];
 
@@ -769,14 +795,33 @@ export default function EstoquePage() {
                 {selectedAccounts.length === 1 ? 'selecionado' : 'selecionados'}
               </span>
             )}
-              <Button 
-                variant="outline"
-                className="border-destructive text-destructive hover:text-destructive hover:bg-destructive/10" 
-                onClick={() => setDeletionTarget('selected')} 
-                disabled={selectedAccounts.length === 0}>
-                <Trash2 className="mr-2 h-4 w-4"/> Limpar Tudo
-              </Button>
-               <Dialog open={isWithdrawModalOpen} onOpenChange={setIsWithdrawModalOpen}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={selectedAccounts.length === 0}>
+                  Ações em Massa
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {selectedStatusTab === 'Caida' && (
+                  <DropdownMenuItem onClick={handleCopyAllDataForSelected}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar Tudo
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleCopyEmails}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copiar E-mails
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeletionTarget('selected')}
+                  className="text-red-500 hover:text-red-500 focus:text-red-500"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Apagar Selecionados
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={isWithdrawModalOpen} onOpenChange={setIsWithdrawModalOpen}>
                 <DialogTrigger asChild>
                     <Button variant="outline">
                        Retirar Acesso
