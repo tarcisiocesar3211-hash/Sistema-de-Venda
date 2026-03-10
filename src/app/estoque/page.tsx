@@ -136,6 +136,9 @@ const categories = [
   'Xbox',
   'Globoplay + Premiere',
   'Globoplay + Telecine',
+  'Apple TV',
+  'Universal+',
+  'Prime Video [+Pacote]',
 ];
 
 type SortableKey = 'email' | 'senha' | 'tela' | 'pin' | 'remetente' | 'categoria' | 'status' | 'observacao';
