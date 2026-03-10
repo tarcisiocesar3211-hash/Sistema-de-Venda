@@ -139,6 +139,8 @@ const categories = [
   'Apple TV',
   'Universal+',
   'Prime Video [+Pacote]',
+  'Youtube',
+  'ChatGPT',
 ];
 
 type SortableKey = 'email' | 'senha' | 'tela' | 'pin' | 'remetente' | 'categoria' | 'status' | 'observacao';
