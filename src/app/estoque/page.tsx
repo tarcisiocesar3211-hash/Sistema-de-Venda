@@ -136,6 +136,7 @@ const categories = [
   'Xbox',
   'Globoplay + Premiere',
   'Globoplay + Telecine',
+  'GloboPlay [Completo]',
   'Apple TV',
   'Universal+',
   'Prime Video [+Pacote]',
