@@ -205,6 +205,16 @@
         }
       },
       "required": ["id", "ownerId", "accountId", "accountEmail", "categoria", "generatedMessage", "withdrawnAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a service category for stock accounts.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
     }
   },
   "auth": {
@@ -275,6 +285,15 @@
           "entityName": "Withdrawal",
           "schema": {
             "$ref": "#/backend/entities/Withdrawal"
+          }
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
           }
         }
       }

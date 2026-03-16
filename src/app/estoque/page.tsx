@@ -119,30 +119,10 @@ type Withdrawal = {
   withdrawnAt: string;
 };
 
-const categories = [
-  'Netflix',
-  'Disney',
-  'HBO',
-  'Spotify',
-  'Globoplay Premium',
-  'Paramount',
-  'ClaroTV+',
-  'Deezer',
-  'UFC',
-  'NBA',
-  'Capcut',
-  'Crunchyroll',
-  'Prime Video',
-  'Xbox',
-  'Globoplay + Premiere',
-  'Globoplay + Telecine',
-  'GloboPlay [Completo]',
-  'Apple TV',
-  'Universal+',
-  'Prime Video [+Pacote]',
-  'Youtube',
-  'ChatGPT',
-];
+type Category = {
+  id: string;
+  name: string;
+};
 
 type SortableKey = 'email' | 'senha' | 'tela' | 'pin' | 'remetente' | 'categoria' | 'status' | 'observacao';
 
@@ -171,6 +151,18 @@ export default function EstoquePage() {
     [firestore]
   );
   const { data: withdrawalsData } = useCollection<Withdrawal>(withdrawalsQuery);
+  
+  const categoriesQuery = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'categories') : null),
+    [firestore]
+  );
+  const { data: categoriesData } = useCollection<Category>(categoriesQuery);
+
+  const categories = useMemo(() => {
+    if (!categoriesData) return [];
+    return categoriesData.map(c => c.name).sort((a,b) => a.localeCompare(b));
+  }, [categoriesData]);
+
 
   const [selectedStatusTab, setSelectedStatusTab] = useState('Todos');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -542,7 +534,7 @@ export default function EstoquePage() {
   };
   
   const servicesWithoutStock = useMemo(() => {
-    if (!accounts) return [];
+    if (!accounts || !categories) return [];
     const stockCounts = categories.reduce((acc, cat) => {
         acc[cat] = 0;
         return acc;
@@ -559,7 +551,7 @@ export default function EstoquePage() {
     return Object.entries(stockCounts)
         .filter(([_, count]) => count === 0)
         .map(([service, _]) => service);
-  }, [accounts]);
+  }, [accounts, categories]);
 
   const handleCopyEmails = () => {
     if (selectedAccounts.length === 0 || !accounts) return;
@@ -605,7 +597,7 @@ export default function EstoquePage() {
   };
 
   const stockSummaryData = useMemo(() => {
-    if (!accounts) return [];
+    if (!accounts || !categories) return [];
 
     const stockCounts = categories.reduce((acc, cat) => {
         acc[cat] = 0;
@@ -631,7 +623,7 @@ export default function EstoquePage() {
             value,
             color: colors[index % colors.length],
         }));
-  }, [accounts]);
+  }, [accounts, categories]);
 
 
   const StockSummaryModal = ({

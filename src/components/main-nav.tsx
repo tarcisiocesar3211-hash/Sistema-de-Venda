@@ -12,6 +12,7 @@ import {
   CreditCard,
   Archive,
   Server,
+  Tag,
 } from 'lucide-react';
 
 export function MainNav({ className, ...props }: HTMLAttributes<HTMLElement>) {
@@ -40,6 +41,7 @@ export function MainNav({ className, ...props }: HTMLAttributes<HTMLElement>) {
     },
     { href: '/plans', label: 'Planos', icon: <CreditCard className="h-4 w-4" /> },
     { href: '/estoque', label: 'Estoque', icon: <Archive className="h-4 w-4" /> },
+    { href: '/categories', label: 'Categorias', icon: <Tag className="h-4 w-4" /> },
     { href: '/registry', label: 'Registro', icon: <Server className="h-4 w-4" /> },
   ];
 
