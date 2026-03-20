@@ -131,6 +131,20 @@ type SortConfig = {
   direction: 'ascending' | 'descending';
 };
 
+// Form states for adding multiple accounts
+type NewAccountForm = {
+  email: string;
+  senha: string;
+  tela: string;
+  pin: string;
+  remetente: string;
+  categoria: string;
+  status: Status | '';
+  observacao: string;
+  key: number; // For stable rendering in React
+};
+
+
 export default function EstoquePage() {
   const { firestore } = useFirebase();
 
@@ -179,17 +193,6 @@ export default function EstoquePage() {
   const [searchInput, setSearchInput] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
 
-
-  // Form states for adding
-  const [newEmail, setNewEmail] = useState('');
-  const [newSenha, setNewSenha] = useState('');
-  const [newTela, setNewTela] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [newRemetente, setNewRemetente] = useState('');
-  const [newCategoria, setNewCategoria] = useState('');
-  const [newStatus, setNewStatus] = useState<Status | ''>('');
-  const [newObservacao, setNewObservacao] = useState('');
-
   // State for editing an account
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -207,6 +210,85 @@ export default function EstoquePage() {
   const [selectedServiceForWithdraw, setSelectedServiceForWithdraw] = useState('');
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  
+  const [newAccounts, setNewAccounts] = useState<NewAccountForm[]>([{ email: '', senha: '', tela: '', pin: '', remetente: '', categoria: '', status: 'Estoque', observacao: '', key: Date.now() }]);
+
+  const handleNewAccountChange = <K extends keyof Omit<NewAccountForm, 'key'>>(index: number, field: K, value: NewAccountForm[K]) => {
+    const updatedAccounts = newAccounts.map((account, i) => {
+      if (i === index) {
+        return { ...account, [field]: value };
+      }
+      return account;
+    });
+    setNewAccounts(updatedAccounts);
+  };
+
+  const addAccountForm = () => {
+    if (newAccounts.length < 7) {
+      setNewAccounts([...newAccounts, { email: '', senha: '', tela: '', pin: '', remetente: '', categoria: '', status: 'Estoque', observacao: '', key: Date.now() }]);
+    } else {
+        toast({
+            variant: 'default',
+            title: 'Limite atingido',
+            description: 'Você pode adicionar no máximo 7 contas por vez.',
+        })
+    }
+  };
+
+  const removeAccountForm = (index: number) => {
+    if (newAccounts.length > 1) {
+      setNewAccounts(newAccounts.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleAddAccounts = () => {
+    if (!firestore) return;
+
+    const validAccounts = newAccounts.filter(acc => acc.email && acc.senha && acc.categoria && acc.status);
+    if (validAccounts.length === 0) {
+        toast({
+            variant: 'destructive',
+            title: 'Nenhuma conta válida',
+            description: 'Por favor, preencha os campos obrigatórios (E-mail, Senha, Categoria, Status).',
+        });
+        return;
+    }
+
+    const batch = writeBatch(firestore);
+
+    validAccounts.forEach((acc, index) => {
+        const newAccountId = `ACC${Date.now()}_${index}`;
+        const newAccountData: Omit<Account, 'id'> = {
+          ownerId: SHARED_USER_ID,
+          email: acc.email,
+          senha: acc.senha,
+          tela: acc.tela,
+          pin: acc.pin,
+          remetente: acc.remetente,
+          categoria: acc.categoria,
+          status: acc.status as Status, // We've filtered for this
+          observacao: acc.observacao,
+        };
+        const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', newAccountId);
+        batch.set(accountRef, newAccountData);
+    });
+
+    batch.commit().then(() => {
+        toast({
+            title: 'Contas adicionadas!',
+            description: `${validAccounts.length} conta(s) foram adicionadas ao estoque.`,
+        });
+        setNewAccounts([{ email: '', senha: '', tela: '', pin: '', remetente: '', categoria: '', status: 'Estoque', observacao: '', key: Date.now() }]);
+        setIsAddSheetOpen(false);
+    }).catch(error => {
+        console.error("Error adding accounts in batch: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Erro!',
+            description: 'Ocorreu um erro ao adicionar as contas.',
+        });
+    });
+  };
 
   const handleCategoryFilterChange = (category: string) => {
     setCategoryFilter((prev) =>
@@ -239,44 +321,6 @@ export default function EstoquePage() {
       setEditedObservacao(editingAccount.observacao || '');
     }
   }, [editingAccount]);
-
-  const handleAddAccount = () => {
-    if (!newEmail || !newSenha || !newCategoria || !newStatus || !firestore) {
-      return;
-    }
-
-    const newAccountId = `ACC${Date.now()}`;
-    const newAccount: Omit<Account, 'id'> = {
-      ownerId: SHARED_USER_ID,
-      email: newEmail,
-      senha: newSenha,
-      tela: newTela,
-      pin: newPin,
-      remetente: newRemetente,
-      categoria: newCategoria,
-      status: newStatus,
-      observacao: newObservacao,
-    };
-
-    const accountRef = doc(
-      firestore,
-      'users',
-      SHARED_USER_ID,
-      'accounts',
-      newAccountId
-    );
-    setDocumentNonBlocking(accountRef, newAccount, { merge: true });
-
-    setNewEmail('');
-    setNewSenha('');
-    setNewTela('');
-    setNewPin('');
-    setNewRemetente('');
-    setNewCategoria('');
-    setNewStatus('');
-    setNewObservacao('');
-    setIsAddSheetOpen(false);
-  };
 
   const handleRemoveAccount = (id: string) => {
     if (!firestore) return;
@@ -865,59 +909,83 @@ export default function EstoquePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-              <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+              <Sheet open={isAddSheetOpen} onOpenChange={(isOpen) => {
+                setIsAddSheetOpen(isOpen);
+                if (!isOpen) {
+                  // Reset to one form when closing
+                  setNewAccounts([{ email: '', senha: '', tela: '', pin: '', remetente: '', categoria: '', status: 'Estoque', observacao: '', key: Date.now() }]);
+                }
+              }}>
                 <SheetTrigger asChild>
                   <Button variant="destructive">
                     <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Estoque
                   </Button>
                 </SheetTrigger>
-                <SheetContent>
+                <SheetContent className="sm:max-w-4xl">
                   <SheetHeader>
-                    <SheetTitle>Adicionar nova conta</SheetTitle>
+                    <SheetTitle>Adicionar Contas em Lote</SheetTitle>
                     <SheetDescription>
-                      Preencha os dados para adicionar uma nova conta ao estoque.
+                      Preencha os dados para adicionar uma ou mais contas ao estoque.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="categoria" className="text-right">Categoria</Label>
-                      <Select value={newCategoria} onValueChange={setNewCategoria}>
-                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione uma categoria" /></SelectTrigger>
-                        <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="status" className="text-right">Status</Label>
-                      <Select value={newStatus} onValueChange={(value) => setNewStatus(value as Status)}>
-                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Selecione um status" /></SelectTrigger>
-                        <SelectContent>{statuses.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="email" className="text-right">E-mail</Label>
-                      <Input id="email" placeholder="email@exemplo.com" className="col-span-3" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="senha" className="text-right">Senha</Label>
-                      <Input id="senha" placeholder="Sua senha" className="col-span-3" value={newSenha} onChange={(e) => setNewSenha(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="tela" className="text-right">Tela</Label>
-                      <Input id="tela" placeholder="Ex: Perfil 1" className="col-span-3" value={newTela} onChange={(e) => setNewTela(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="pin" className="text-right">PIN</Label>
-                      <Input id="pin" placeholder="Ex: 1234" className="col-span-3" value={newPin} onChange={(e) => setNewPin(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="remetente" className="text-right">Remetente</Label>
-                      <Input id="remetente" placeholder="Nome do remetente" className="col-span-3" value={newRemetente} onChange={(e) => setNewRemetente(e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="observacao" className="text-right">Observação</Label>
-                      <Textarea id="observacao" placeholder="Qualquer observação" className="col-span-3" value={newObservacao} onChange={(e) => setNewObservacao(e.target.value)} />
-                    </div>
-                    <Button onClick={handleAddAccount} className="w-full">Salvar conta</Button>
+                  <div className="py-4">
+                    <ScrollArea className="h-[70vh] pr-6">
+                      <div className="space-y-6">
+                        {newAccounts.map((account, index) => (
+                          <Card key={account.key} className="p-4 relative">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="grid gap-2">
+                                <Label htmlFor={`categoria-${index}`}>Categoria</Label>
+                                <Select value={account.categoria} onValueChange={(value) => handleNewAccountChange(index, 'categoria', value)}>
+                                  <SelectTrigger id={`categoria-${index}`}><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`status-${index}`}>Status</Label>
+                                <Select value={account.status} onValueChange={(value) => handleNewAccountChange(index, 'status', value as Status)}>
+                                  <SelectTrigger id={`status-${index}`}><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                  <SelectContent>{statuses.map((status) => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
+                                </Select>
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`email-${index}`}>E-mail</Label>
+                                <Input id={`email-${index}`} placeholder="email@exemplo.com" value={account.email} onChange={(e) => handleNewAccountChange(index, 'email', e.target.value)} />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`senha-${index}`}>Senha</Label>
+                                <Input id={`senha-${index}`} placeholder="Sua senha" value={account.senha} onChange={(e) => handleNewAccountChange(index, 'senha', e.target.value)} />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`tela-${index}`}>Tela</Label>
+                                <Input id={`tela-${index}`} placeholder="Ex: Perfil 1" value={account.tela} onChange={(e) => handleNewAccountChange(index, 'tela', e.target.value)} />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`pin-${index}`}>PIN</Label>
+                                <Input id={`pin-${index}`} placeholder="Ex: 1234" value={account.pin} onChange={(e) => handleNewAccountChange(index, 'pin', e.target.value)} />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor={`remetente-${index}`}>Remetente</Label>
+                                <Input id={`remetente-${index}`} placeholder="Nome do remetente" value={account.remetente} onChange={(e) => handleNewAccountChange(index, 'remetente', e.target.value)} />
+                              </div>
+                              <div className="grid gap-2 md:col-span-2">
+                                <Label htmlFor={`observacao-${index}`}>Observação</Label>
+                                <Textarea id={`observacao-${index}`} placeholder="Qualquer observação" value={account.observacao} onChange={(e) => handleNewAccountChange(index, 'observacao', e.target.value)} />
+                              </div>
+                            </div>
+                            {newAccounts.length > 1 && (
+                              <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => removeAccountForm(index)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
+                          </Card>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                  <div className="flex justify-between items-center mt-4">
+                      <Button variant="outline" onClick={addAccountForm}>Adicionar Outra Conta</Button>
+                      <Button onClick={handleAddAccounts}>Salvar {newAccounts.length > 1 ? 'Contas' : 'Conta'}</Button>
                   </div>
                 </SheetContent>
               </Sheet>
