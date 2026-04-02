@@ -397,7 +397,7 @@ export default function EstoquePage() {
     }
   };
 
-  const handleExportAccounts = () => {
+  const handleExportTSV = () => {
     if (filteredAndSortedAccounts.length === 0) {
       toast({
         title: 'Nenhum dado para exportar',
@@ -438,6 +438,52 @@ export default function EstoquePage() {
       const date = new Date().toISOString().slice(0, 10);
       link.setAttribute('href', url);
       link.setAttribute('download', `estoque_${date}.tsv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleExportJSON = () => {
+    if (filteredAndSortedAccounts.length === 0) {
+      toast({
+        title: 'Nenhum dado para exportar',
+        description: 'A tabela está vazia ou os filtros não retornaram resultados.',
+      });
+      return;
+    }
+
+    const dataToExport = filteredAndSortedAccounts.map(
+      ({
+        email,
+        senha,
+        tela,
+        pin,
+        remetente,
+        categoria,
+        status,
+        observacao,
+      }) => ({
+        email,
+        senha,
+        tela: tela || '',
+        pin: pin || '',
+        remetente: remetente || '',
+        categoria,
+        status,
+        observacao: observacao || '',
+      })
+    );
+
+    const jsonContent = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `estoque_${date}.json`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -1065,9 +1111,17 @@ export default function EstoquePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-              <Button variant="outline" onClick={handleExportAccounts}>
-                <Download className="mr-2 h-4 w-4" /> Exportar
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        <Download className="mr-2 h-4 w-4" /> Exportar
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem onClick={handleExportTSV}>Exportar como TSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportJSON}>Exportar como JSON</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
                 <Upload className="mr-2 h-4 w-4" /> Importar
               </Button>
