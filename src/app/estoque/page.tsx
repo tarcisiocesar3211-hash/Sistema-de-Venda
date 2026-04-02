@@ -78,6 +78,7 @@ import {
   Clock,
   CalendarDays,
   Upload,
+  Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -393,6 +394,54 @@ export default function EstoquePage() {
         title: 'Nenhuma conta importada',
         description: 'Verifique se os dados inseridos estão no formato correto.',
       });
+    }
+  };
+
+  const handleExportAccounts = () => {
+    if (filteredAndSortedAccounts.length === 0) {
+      toast({
+        title: 'Nenhum dado para exportar',
+        description: 'A tabela está vazia ou os filtros não retornaram resultados.',
+      });
+      return;
+    }
+
+    const headers = [
+      'E-mail',
+      'Senha',
+      'Tela',
+      'PIN',
+      'Remetente',
+      'Categoria',
+      'Status',
+      'Observação',
+    ];
+
+    const tsvContent = [
+      headers.join('\t'),
+      ...filteredAndSortedAccounts.map(acc => [
+        acc.email,
+        acc.senha,
+        acc.tela || '',
+        acc.pin || '',
+        acc.remetente || '',
+        acc.categoria,
+        acc.status,
+        acc.observacao || '',
+      ].join('\t'))
+    ].join('\n');
+
+    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `estoque_${date}.tsv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -1016,6 +1065,9 @@ export default function EstoquePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+              <Button variant="outline" onClick={handleExportAccounts}>
+                <Download className="mr-2 h-4 w-4" /> Exportar
+              </Button>
               <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
                 <Upload className="mr-2 h-4 w-4" /> Importar
               </Button>
