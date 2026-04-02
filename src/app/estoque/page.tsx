@@ -77,6 +77,7 @@ import {
   Archive,
   Clock,
   CalendarDays,
+  Upload,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -213,6 +214,9 @@ export default function EstoquePage() {
   
   const [newAccounts, setNewAccounts] = useState<NewAccountForm[]>([{ email: '', senha: '', tela: '', pin: '', remetente: '', categoria: '', status: 'Estoque', observacao: '', key: Date.now() }]);
 
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+
   const handleNewAccountChange = <K extends keyof Omit<NewAccountForm, 'key'>>(index: number, field: K, value: NewAccountForm[K]) => {
     const updatedAccounts = newAccounts.map((account, i) => {
       if (i === index) {
@@ -289,6 +293,109 @@ export default function EstoquePage() {
         });
     });
   };
+
+  const handleImportAccounts = () => {
+    if (!importText || !firestore) {
+      toast({
+        variant: 'default',
+        title: 'Nenhum dado para importar',
+        description: 'Por favor, cole os dados das contas na área de texto.',
+      });
+      return;
+    }
+
+    const lines = importText.trim().split('\n');
+    const batch = writeBatch(firestore);
+    let accountsAdded = 0;
+    const errors: string[] = [];
+
+    lines.forEach((line, index) => {
+      if (!line.trim()) return; // Skip empty lines
+
+      const fields = line.split('\t');
+      const [
+        email,
+        senha,
+        tela = '',
+        pin = '',
+        remetente = '',
+        categoria,
+        status,
+        observacao = '',
+      ] = fields.map(f => f.trim());
+
+      if (!email || !senha || !categoria || !status) {
+        errors.push(`Linha ${index + 1}: Campos obrigatórios (E-mail, Senha, Categoria, Status) estão faltando.`);
+        return;
+      }
+
+      if (!statuses.includes(status as Status)) {
+        errors.push(`Linha ${index + 1}: Status "${status}" é inválido. Valores permitidos: ${statuses.join(', ')}`);
+        return;
+      }
+
+      const newAccountId = `ACC${Date.now()}_IMPORT_${index}`;
+      const newAccountData: Omit<Account, 'id'> = {
+        ownerId: SHARED_USER_ID,
+        email,
+        senha,
+        tela,
+        pin,
+        remetente,
+        categoria,
+        status: status as Status,
+        observacao,
+      };
+
+      const accountRef = doc(firestore, 'users', SHARED_USER_ID, 'accounts', newAccountId);
+      batch.set(accountRef, newAccountData);
+      accountsAdded++;
+    });
+
+    if (errors.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Erros na importação',
+        description: (
+          <div className="flex flex-col gap-2">
+            <p>Corrija os erros e tente novamente:</p>
+            <ScrollArea className="max-h-40 w-full rounded-md border p-2">
+              <ul className="list-disc list-inside text-xs">
+                {errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </ScrollArea>
+          </div>
+        ),
+        duration: 15000,
+      });
+      return;
+    }
+
+    if (accountsAdded > 0) {
+      batch.commit().then(() => {
+        toast({
+          title: 'Importação Concluída!',
+          description: `${accountsAdded} conta(s) foram importadas com sucesso.`,
+        });
+        setImportText('');
+        setIsImportModalOpen(false);
+      }).catch(error => {
+        console.error("Error importing accounts: ", error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro na Importação!',
+          description: 'Ocorreu um erro ao salvar as contas no banco de dados.',
+        });
+      });
+    } else {
+      toast({
+        variant: 'default',
+        title: 'Nenhuma conta importada',
+        description: 'Verifique se os dados inseridos estão no formato correto.',
+      });
+    }
+  };
+
 
   const handleCategoryFilterChange = (category: string) => {
     setCategoryFilter((prev) =>
@@ -909,6 +1016,9 @@ export default function EstoquePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+              <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" /> Importar
+              </Button>
               <Sheet open={isAddSheetOpen} onOpenChange={(isOpen) => {
                 setIsAddSheetOpen(isOpen);
                 if (!isOpen) {
@@ -1233,6 +1343,47 @@ export default function EstoquePage() {
           <DialogFooter>
             <Button onClick={() => setIsHistoryModalOpen(false)} variant="destructive" className="w-full">
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Importar Contas em Massa</DialogTitle>
+            <DialogDescription>
+              Cole os dados das contas abaixo. Cada linha representa uma conta.
+              <br />
+              Use a tecla <strong>TAB</strong> para separar os campos nesta ordem:
+            </DialogDescription>
+            <code className="text-xs font-mono p-2 bg-muted rounded-sm relative">
+              E-mail<span className="text-muted-foreground mx-1">[TAB]</span>
+              Senha<span className="text-muted-foreground mx-1">[TAB]</span>
+              Tela<span className="text-muted-foreground mx-1">[TAB]</span>
+              PIN<span className="text-muted-foreground mx-1">[TAB]</span>
+              Remetente<span className="text-muted-foreground mx-1">[TAB]</span>
+              Categoria<span className="text-muted-foreground mx-1">[TAB]</span>
+              Status<span className="text-muted-foreground mx-1">[TAB]</span>
+              Observação
+            </code>
+            <p className="text-xs text-muted-foreground pt-2">
+              Dica: Você pode copiar e colar diretamente de uma planilha (Excel, Google Sheets).
+            </p>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Textarea
+              placeholder="Exemplo: conta1@email.com	senha123	Perfil 1	1111	remetente1	Netflix	Estoque	Obs 1..."
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              className="h-48 font-mono text-xs"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImportModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportAccounts}>
+              Importar Contas
             </Button>
           </DialogFooter>
         </DialogContent>
