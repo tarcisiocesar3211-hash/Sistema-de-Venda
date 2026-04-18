@@ -46,6 +46,7 @@ import {
   Copy,
   ArrowUpDown,
   Search,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { addDays, format, parseISO, differenceInDays } from 'date-fns';
@@ -486,6 +487,52 @@ export default function ClientsPage() {
     });
   };
 
+  const handleExportSelectedTxt = () => {
+    if (selectedClients.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum cliente selecionado',
+        description: 'Por favor, selecione pelo menos um cliente para exportar.',
+      });
+      return;
+    }
+
+    const clientsToExport = sortedClients.filter((client) =>
+      selectedClients.includes(client.id)
+    );
+
+    const textContent = clientsToExport
+      .map((client) => {
+        const email = client.email || '';
+        const senha = ''; // 'senha' is not available on the client entity
+        const tela = client.tela || '';
+        const pin = client.pin || '';
+        const vencimento = client.formattedDueDate || '';
+        const valor = (client.planPrice || '')
+          .replace(/[^\d,]/g, '')
+          .replace(',', '.');
+        return [email, senha, tela, pin, vencimento, valor].join('|');
+      })
+      .join('\n');
+
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      const date = new Date().toISOString().slice(0, 10);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `clientes_${date}.txt`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({
+        title: 'Exportação concluída',
+        description: `${clientsToExport.length} cliente(s) exportado(s) para .txt.`,
+      });
+    }
+  };
+
   const allVisibleSelected = useMemo(() => {
     if (sortedClients.length === 0) return false;
     return sortedClients.every((client) => selectedClients.includes(client.id));
@@ -550,6 +597,10 @@ export default function ClientsPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleExportSelectedTxt}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar Selecionados (.txt)
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleCopyEmails}>
                   <Copy className="mr-2 h-4 w-4" />
                   Copiar E-mails
