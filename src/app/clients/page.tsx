@@ -504,9 +504,9 @@ export default function ClientsPage() {
     const textContent = clientsToExport
       .map((client) => {
         const email = client.email || '';
-        const senha = ''; // 'senha' is not available on the client entity
-        const tela = client.tela || '';
-        const pin = client.pin || '';
+        const senha = 'N/A'; // 'senha' is not available on the client entity
+        const tela = client.tela || 'N/A';
+        const pin = client.pin || 'N/A';
         const vencimento = client.formattedDueDate || '';
         const valor = (client.planPrice || '')
           .replace(/[^\d,]/g, '')
