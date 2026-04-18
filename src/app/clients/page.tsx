@@ -135,6 +135,7 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [currentView, setCurrentView] = useState<'all' | 'support'>('all');
+  const [planFilter, setPlanFilter] = useState('all');
 
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
@@ -367,13 +368,19 @@ export default function ClientsPage() {
   const sortedClients = useMemo(() => {
     if (!clients || !plans) return [];
     
-    let filteredClients = searchQuery
-      ? clients.filter(
+    let filteredClients = clients;
+    
+    if (searchQuery) {
+      filteredClients = filteredClients.filter(
           (client) =>
             client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             client.email.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : clients;
+        );
+    }
+    
+    if (planFilter !== 'all') {
+        filteredClients = filteredClients.filter(client => client.planId === planFilter);
+    }
 
     if (currentView === 'support') {
       filteredClients = filteredClients.filter((client) => client.suporte);
@@ -419,7 +426,7 @@ export default function ClientsPage() {
     }
 
     return sortableClients;
-  }, [clients, plans, sortConfig, searchQuery, currentView]);
+  }, [clients, plans, sortConfig, searchQuery, currentView, planFilter]);
 
   const handleRenewSelected = () => {
     if (selectedClients.length === 0 || !firestore || !clients || !plans) return;
@@ -590,6 +597,19 @@ export default function ClientsPage() {
                 {selectedClients.length === 1 ? 'selecionado' : 'selecionados'}
               </span>
             )}
+            <Select value={planFilter} onValueChange={setPlanFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por plano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Planos</SelectItem>
+                {plans?.map((plan) => (
+                  <SelectItem key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" disabled={selectedClients.length === 0}>
